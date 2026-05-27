@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - مكاني ستور</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .admin-container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
+        .admin-card { background: white; border-radius: 24px; padding: 25px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-top: 20px; }
+        .admin-input { padding: 12px; border: 1px solid #e2e8f0; border-radius: 16px; font-family: inherit; }
+        .btn-primary { background: #0077b6; color: white; padding: 12px 24px; border-radius: 50px; border: none; cursor: pointer; }
+        .admin-table { width: 100%; overflow-x: auto; }
+        .admin-table table { width: 100%; border-collapse: collapse; }
+        .admin-table th, .admin-table td { padding: 12px; border-bottom: 1px solid #eef2f6; }
+        .btn-sm { padding: 6px 16px; border-radius: 30px; border: none; cursor: pointer; margin: 0 4px; }
+        .btn-edit { background: #e0f2fe; color: #0077b6; }
+        .btn-delete { background: #fee2e2; color: #e63946; }
+        .category-item-admin { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border-radius: 16px; margin-bottom: 10px; }
+        .login-box { max-width: 400px; margin: 100px auto; text-align: center; }
+        .admin-tabs { display: flex; gap: 15px; margin-bottom: 25px; }
+        .admin-tab { padding: 12px 28px; border-radius: 50px; border: none; background: #f1f5f9; cursor: pointer; }
+        .admin-tab.active { background: #0077b6; color: white; }
+    </style>
+</head>
+<body>
+
+<div id="admin-app">
+    <div class="top-bar"><div class="container"><span>🔐 لوحة تحكم المدير</span></div></div>
+    
+    <div class="admin-container" id="admin-content">
+        <div id="login-screen" class="login-box">
+            <div class="admin-card">
+                <h2>🔐 دخول المدير</h2>
+                <input type="password" id="admin-password" class="admin-input" placeholder="كلمة المرور" style="margin:15px 0">
+                <button onclick="checkAdminLogin()" class="btn-primary">دخول</button>
+                <p style="margin-top:15px;">كلمة المرور: <strong>admin123</strong></p>
+            </div>
+        </div>
+
+        <div id="dashboard" style="display:none">
+            <div class="admin-card"><h2>📍 لوحة تحكم مكاني ستور</h2><button onclick="logout()" style="background:#e63946; color:white; border:none; padding:10px 20px; border-radius:30px;">تسجيل خروج</button></div>
+            
+            <div class="admin-tabs">
+                <button class="admin-tab active" onclick="showAdminTab('products')">📦 المنتجات</button>
+                <button class="admin-tab" onclick="showAdminTab('categories')">🏷️ الأقسام</button>
+            </div>
+
+            <div id="products-tab">
+                <div class="admin-card">
+                    <h3>➕ إضافة منتج جديد</h3>
+                    <div class="form-grid">
+                        <input type="text" id="new-name" class="admin-input" placeholder="اسم المنتج">
+                        <input type="number" id="new-price" class="admin-input" placeholder="السعر">
+                        <input type="text" id="new-image" class="admin-input" placeholder="رابط الصورة">
+                        <select id="new-category" class="admin-input"></select>
+                        <input type="number" id="new-stock" class="admin-input" placeholder="الكمية">
+                        <button onclick="addProduct()" class="btn-primary">➕ إضافة</button>
+                    </div>
+                </div>
+                <div class="admin-card">
+                    <h3>📦 قائمة المنتجات</h3>
+                    <div class="admin-table"><table><thead><tr><th>المنتج</th><th>السعر</th><th>القسم</th><th>المخزون</th><th>إجراءات</th></tr></thead><tbody id="products-list-admin"></tbody></table></div>
+                </div>
+            </div>
+
+            <div id="categories-tab" style="display:none">
+                <div class="admin-card">
+                    <h3>➕ إضافة قسم جديد</h3>
+                    <div class="form-grid">
+                        <input type="text" id="new-cat-name" class="admin-input" placeholder="اسم القسم">
+                        <input type="text" id="new-cat-icon" class="admin-input" placeholder="أيقونة 📱">
+                        <button onclick="addCategory()" class="btn-primary">➕ إضافة قسم</button>
+                    </div>
+                </div>
+                <div class="admin-card"><h3>🏷️ الأقسام الحالية</h3><div id="categories-list-admin"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
