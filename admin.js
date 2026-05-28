@@ -6,7 +6,8 @@
 // 1. إعداد الاتصال بقاعدة البيانات (Supabase)
 // ------------------------
 
-const SUPABASE_URL = "https://ymfxhrbjqubgpgxzh oqx.supabase.co";
+// الرابط الصحيح (بدون مسافات أو شرطات)
+const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTc0MzksImV4cCI6MjA5NTUzMzQzOX0.4hahW-U_IOOBJFfwl2P0qdFl2gXp6QUVuanRis8XLt4";
 
 let supabaseClient = null;
