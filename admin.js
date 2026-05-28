@@ -1,63 +1,190 @@
-let products = JSON.parse(localStorage.getItem('makani_products')) || [];
-let categories = JSON.parse(localStorage.getItem('makani_categories')) || [
-    { id: 1, name: "أجهزة كهربائية", icon: "🔌" },
-    { id: 2, name: "مواد منزلية", icon: "🏠" },
-    { id: 3, name: "إلكترونيات", icon: "📱" },
-    { id: 4, name: "أزياء", icon: "👕" }
-];
+// ==================================================
+// هذا الكود خاص بلوحة تحكم المدير
+// ==================================================
 
-function saveProducts() { localStorage.setItem('makani_products', JSON.stringify(products)); }
-function saveCategories() { localStorage.setItem('makani_categories', JSON.stringify(categories)); }
+// ------------------------
+// 1. إعداد الاتصال بقاعدة البيانات
+// ------------------------
 
-function formatPrice(price) { return price.toLocaleString() + ' دينار'; }
+const SUPABASE_URL = "https://ymfxhrbjqubgpgxzh oqx.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTc0MzksImV4cCI6MjA5NTUzMzQzOX0.4hahW-U_IOOBJFfwl2P0qdFl2gXp6QUVuanRis8XLt4";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ------------------------
+// 2. المتغيرات العامة
+// ------------------------
+
+let products = [];
+let categories = [];
+
+// ------------------------
+// 3. تحميل البيانات من قاعدة البيانات
+// ------------------------
+
+async function loadData() {
+    try {
+        // تحميل المنتجات
+        const { data: productsData } = await supabase.from('products').select('*');
+        // تحميل الأقسام
+        const { data: categoriesData } = await supabase.from('categories').select('*');
+        
+        if (productsData) products = productsData;
+        if (categoriesData) categories = categoriesData;
+        
+        renderAdminProducts();
+        renderAdminCategories();
+        updateCategorySelect();
+    } catch (error) {
+        console.error("خطأ في التحميل:", error);
+    }
+}
+
+// ------------------------
+// 4. عرض المنتجات في جدول الإدارة
+// ------------------------
 
 function renderAdminProducts() {
-    let t = document.getElementById('products-list-admin');
-    if(!t) return;
-    if(products.length === 0) { t.innerHTML = '<tr><td colspan="6" style="text-align:center">📦 لا توجد منتجات حالياً</td></tr>'; return; }
-    t.innerHTML = products.map(p=>{ 
-        let c = categories.find(cat=>cat.id == p.categoryId); 
+    const tbody = document.getElementById('products-list-admin');
+    if (!tbody) return;
+    
+    if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">📦 لا توجد منتجات حالياً</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = products.map(product => {
+        const category = categories.find(c => c.id == product.category_id);
         return `
             <tr>
-                <td style="text-align:right"><strong>${p.name}</strong></td>
-                <td>${formatPrice(p.price)}</td>
-                <td>${c ? c.icon+' '+c.name : '⚠️ بدون قسم'}</td>
-                <td><input type="number" id="stock-${p.id}" value="${p.stock}" style="width:70px; padding:5px; border-radius:10px; border:1px solid #ccc;"></td>
+                <td style="text-align:right"><strong>${product.name}</strong></td>
+                <td>${product.price.toLocaleString()} دينار</td>
+                <td>${category ? category.icon + ' ' + category.name : '-'}</td>
                 <td>
-                    <select id="cat-${p.id}" style="padding:5px 10px; border-radius:20px; border:1px solid #ccc;">
-                        ${categories.map(cat => `<option value="${cat.id}" ${p.categoryId == cat.id ? 'selected' : ''}>${cat.icon} ${cat.name}</option>`).join('')}
+                    <input type="number" id="stock-${product.id}" value="${product.stock}" style="width:70px; padding:5px; border-radius:10px; border:1px solid #ccc;">
+                </td>
+                <td>
+                    <select id="cat-${product.id}" style="padding:5px 10px; border-radius:20px; border:1px solid #ccc;">
+                        ${categories.map(cat => `<option value="${cat.id}" ${product.category_id == cat.id ? 'selected' : ''}>${cat.icon} ${cat.name}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <button class="btn-sm btn-edit" onclick="updateProduct(${p.id})">💾 تحديث</button>
-                    <button class="btn-sm btn-delete" onclick="deleteProduct(${p.id})">🗑️ حذف</button>
-                </td>
+                    <button class="btn-sm btn-edit" onclick="updateProduct(${product.id})">💾 تحديث</button>
+                    <button class="btn-sm btn-delete" onclick="deleteProduct(${product.id})">🗑️ حذف</button>
+                 </td>
             </tr>
         `;
     }).join('');
 }
 
-function updateProduct(id) {
-    let product = products.find(p => p.id == id);
-    if(product) {
-        let newStock = parseInt(document.getElementById(`stock-${id}`).value);
-        let newCategory = parseInt(document.getElementById(`cat-${id}`).value);
-        if(isNaN(newStock)) { alert("⚠️ الكمية غير صحيحة"); return; }
-        product.stock = newStock;
-        product.categoryId = newCategory;
-        saveProducts();
-        renderAdminProducts();
+// تحديث منتج (المخزون والقسم)
+async function updateProduct(id) {
+    const newStock = parseInt(document.getElementById(`stock-${id}`).value);
+    const newCategory = parseInt(document.getElementById(`cat-${id}`).value);
+    
+    if (isNaN(newStock)) {
+        alert("⚠️ الكمية غير صحيحة");
+        return;
+    }
+    
+    try {
+        const { error } = await supabase
+            .from('products')
+            .update({ stock: newStock, category_id: newCategory })
+            .eq('id', id);
+        
+        if (error) throw error;
+        
         alert("✅ تم تحديث المنتج بنجاح");
+        loadData();  // إعادة تحميل البيانات
+    } catch (error) {
+        console.error("خطأ في التحديث:", error);
+        alert("❌ حدث خطأ في التحديث");
     }
 }
 
+// حذف منتج
+async function deleteProduct(id) {
+    if (!confirm("⚠️ هل أنت متأكد من حذف هذا المنتج؟")) return;
+    
+    try {
+        const { error } = await supabase
+            .from('products')
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        alert("✅ تم حذف المنتج");
+        loadData();
+    } catch (error) {
+        console.error("خطأ في الحذف:", error);
+        alert("❌ حدث خطأ في الحذف");
+    }
+}
+
+// إضافة منتج جديد
+async function addProduct() {
+    const name = document.getElementById('new-name')?.value.trim();
+    const price = document.getElementById('new-price')?.value;
+    const image = document.getElementById('new-image')?.value.trim();
+    const categoryId = document.getElementById('new-category')?.value;
+    const stock = document.getElementById('new-stock')?.value;
+    
+    // التحقق من صحة المدخلات
+    if (!name) { alert("⚠️ يرجى إدخال اسم المنتج"); return; }
+    if (!price || isNaN(parseInt(price))) { alert("⚠️ يرجى إدخال سعر صحيح"); return; }
+    if (!stock || isNaN(parseInt(stock))) { alert("⚠️ يرجى إدخال كمية صحيحة"); return; }
+    if (!categoryId) { alert("⚠️ يرجى اختيار قسم للمنتج"); return; }
+    
+    // إذا لم يضع صورة، نستخدم صورة افتراضية
+    const imageUrl = image || "https://placehold.co/400x400/0077b6/white?text=" + encodeURIComponent(name);
+    
+    try {
+        const { error } = await supabase
+            .from('products')
+            .insert([{
+                id: Date.now(),           // معرف فريد
+                name: name,
+                price: parseInt(price),
+                image: imageUrl,
+                category_id: parseInt(categoryId),
+                stock: parseInt(stock)
+            }]);
+        
+        if (error) throw error;
+        
+        alert("✅ تم إضافة المنتج بنجاح");
+        
+        // تفريغ الحقول
+        document.getElementById('new-name').value = '';
+        document.getElementById('new-price').value = '';
+        document.getElementById('new-image').value = '';
+        document.getElementById('new-stock').value = '';
+        
+        loadData();
+    } catch (error) {
+        console.error("خطأ في الإضافة:", error);
+        alert("❌ حدث خطأ في إضافة المنتج");
+    }
+}
+
+// ------------------------
+// 5. إدارة الأقسام
+// ------------------------
+
 function renderAdminCategories() {
-    let c = document.getElementById('categories-list-admin');
-    if(!c) return;
-    if(categories.length === 0) { c.innerHTML = '<p>⚠️ لا توجد أقسام حالياً. أضف قسم جديد!</p>'; return; }
-    c.innerHTML = categories.map(cat=>`
+    const container = document.getElementById('categories-list-admin');
+    if (!container) return;
+    
+    if (categories.length === 0) {
+        container.innerHTML = '<p>⚠️ لا توجد أقسام حالياً</p>';
+        return;
+    }
+    
+    container.innerHTML = categories.map(cat => `
         <div class="category-item-admin">
-            <div><span style="font-size:1.8rem">${cat.icon}</span> <strong style="font-size:1.1rem">${cat.name}</strong> <small style="color:#8899aa;">(ID: ${cat.id})</small></div>
+            <div><span style="font-size:1.8rem">${cat.icon}</span> <strong>${cat.name}</strong></div>
             <div>
                 <button class="btn-sm btn-edit" onclick="editCategory(${cat.id})">✏️ تعديل</button>
                 <button class="btn-sm btn-delete" onclick="deleteCategory(${cat.id})">🗑️ حذف</button>
@@ -67,153 +194,156 @@ function renderAdminCategories() {
 }
 
 function updateCategorySelect() {
-    let s = document.getElementById('new-category');
-    if(s) {
-        s.innerHTML = '<option value="">-- اختر القسم --</option>' + categories.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+    const select = document.getElementById('new-category');
+    if (select) {
+        select.innerHTML = '<option value="">-- اختر القسم --</option>' +
+            categories.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
     }
 }
 
-function addProduct() {
-    let n = document.getElementById('new-name')?.value.trim();
-    let p = document.getElementById('new-price')?.value;
-    let i = document.getElementById('new-image')?.value.trim();
-    let c = document.getElementById('new-category')?.value;
-    let s = document.getElementById('new-stock')?.value;
+async function addCategory() {
+    const name = document.getElementById('new-cat-name')?.value.trim();
+    const icon = document.getElementById('new-cat-icon')?.value || '📁';
     
-    if(!n) { alert("⚠️ يرجى إدخال اسم المنتج"); return; }
-    if(!p || isNaN(parseInt(p))) { alert("⚠️ يرجى إدخال سعر صحيح"); return; }
-    if(!s || isNaN(parseInt(s))) { alert("⚠️ يرجى إدخال كمية صحيحة"); return; }
-    if(!c) { alert("⚠️ يرجى اختيار قسم للمنتج"); return; }
-    
-    let imageUrl = i;
-    if(!imageUrl) {
-        imageUrl = "https://placehold.co/400x400/0077b6/white?text=" + encodeURIComponent(n);
+    if (!name) {
+        alert("⚠️ يرجى إدخال اسم القسم");
+        return;
     }
     
-    products.push({ 
-        id: Date.now(), 
-        name: n, 
-        price: parseInt(p), 
-        image: imageUrl, 
-        categoryId: parseInt(c), 
-        stock: parseInt(s) 
-    });
+    try {
+        const { error } = await supabase
+            .from('categories')
+            .insert([{
+                id: Date.now(),
+                name: name,
+                icon: icon
+            }]);
+        
+        if (error) throw error;
+        
+        alert("✅ تم إضافة القسم بنجاح");
+        document.getElementById('new-cat-name').value = '';
+        document.getElementById('new-cat-icon').value = '';
+        loadData();
+    } catch (error) {
+        console.error("خطأ في الإضافة:", error);
+        alert("❌ حدث خطأ في إضافة القسم");
+    }
+}
+
+async function editCategory(id) {
+    const category = categories.find(c => c.id == id);
+    if (!category) return;
     
-    saveProducts(); 
-    renderAdminProducts();
-    
-    document.getElementById('new-name').value = '';
-    document.getElementById('new-price').value = '';
-    document.getElementById('new-image').value = '';
-    document.getElementById('new-stock').value = '';
-    
-    alert("✅ تم إضافة المنتج بنجاح");
+    const newName = prompt("✏️ اسم القسم الجديد:", category.name);
+    if (newName && newName.trim()) {
+        const newIcon = prompt("✏️ الأيقونة الجديدة (رمز تعبيري):", category.icon);
+        
+        try {
+            const { error } = await supabase
+                .from('categories')
+                .update({ 
+                    name: newName.trim(), 
+                    icon: newIcon || category.icon 
+                })
+                .eq('id', id);
+            
+            if (error) throw error;
+            
+            alert("✅ تم تعديل القسم");
+            loadData();
+        } catch (error) {
+            console.error("خطأ في التعديل:", error);
+            alert("❌ حدث خطأ في تعديل القسم");
+        }
+    }
 }
 
-function deleteProduct(id) { 
-    if(confirm("⚠️ هل أنت متأكد من حذف هذا المنتج؟")){ 
-        products = products.filter(p => p.id != id); 
-        saveProducts(); 
-        renderAdminProducts(); 
-        alert("✅ تم حذف المنتج");
-    } 
-}
-
-function addCategory() { 
-    let n = document.getElementById('new-cat-name')?.value.trim(); 
-    let i = document.getElementById('new-cat-icon')?.value || '📁'; 
-    if(!n){ 
-        alert("⚠️ يرجى إدخال اسم القسم"); 
-        return; 
-    } 
-    let newId = Date.now();
-    categories.push({ id: newId, name: n, icon: i }); 
-    saveCategories(); 
-    renderAdminCategories(); 
-    updateCategorySelect(); 
-    renderAdminProducts();
-    document.getElementById('new-cat-name').value = ''; 
-    document.getElementById('new-cat-icon').value = '';
-    alert("✅ تم إضافة القسم بنجاح"); 
-}
-
-function editCategory(id) { 
-    let c = categories.find(cat=>cat.id==id); 
-    if(c){ 
-        let n = prompt("✏️ اسم القسم الجديد:", c.name); 
-        if(n && n.trim()) c.name = n.trim(); 
-        let ic = prompt("✏️ الأيقونة الجديدة (رمز تعبيري):", c.icon); 
-        if(ic && ic.trim()) c.icon = ic.trim(); 
-        saveCategories(); 
-        renderAdminCategories(); 
-        updateCategorySelect(); 
-        renderAdminProducts();
-        alert("✅ تم تعديل القسم");
-    } 
-}
-
-function deleteCategory(id) { 
-    let productsInCat = products.filter(p => p.categoryId == id);
-    let msg = productsInCat.length > 0 
+async function deleteCategory(id) {
+    const productsInCat = products.filter(p => p.category_id == id);
+    const message = productsInCat.length > 0
         ? `⚠️ هذا القسم يحتوي على ${productsInCat.length} منتج(ات).\nحذف القسم سيؤدي إلى حذف منتجاته أيضاً.\nهل أنت متأكد؟`
         : "⚠️ هل أنت متأكد من حذف هذا القسم؟";
     
-    if(confirm(msg)){ 
-        products = products.filter(p => p.categoryId != id); 
-        categories = categories.filter(c => c.id != id); 
-        saveProducts(); 
-        saveCategories(); 
-        renderAdminProducts(); 
-        renderAdminCategories(); 
-        updateCategorySelect(); 
-        alert("✅ تم حذف القسم");
-    } 
-}
-
-function showAdminTab(tab) { 
-    let productsTab = document.getElementById('products-tab');
-    let categoriesTab = document.getElementById('categories-tab');
-    let btns = document.querySelectorAll('.admin-tab');
+    if (!confirm(message)) return;
     
-    if(tab === 'products') {
-        productsTab.style.display = 'block';
-        categoriesTab.style.display = 'none';
-        btns[0].classList.add('active');
-        btns[1].classList.remove('active');
-        renderAdminProducts();
-    } else {
-        productsTab.style.display = 'none';
-        categoriesTab.style.display = 'block';
-        btns[0].classList.remove('active');
-        btns[1].classList.add('active');
-        renderAdminCategories();
+    try {
+        // أولاً: حذف المنتجات المرتبطة بهذا القسم
+        if (productsInCat.length > 0) {
+            const { error: productsError } = await supabase
+                .from('products')
+                .delete()
+                .eq('category_id', id);
+            
+            if (productsError) throw productsError;
+        }
+        
+        // ثانياً: حذف القسم نفسه
+        const { error } = await supabase
+            .from('categories')
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        alert("✅ تم حذف القسم");
+        loadData();
+    } catch (error) {
+        console.error("خطأ في الحذف:", error);
+        alert("❌ حدث خطأ في حذف القسم");
     }
 }
 
-function checkAdminLogin() { 
-    let password = document.getElementById('admin-password')?.value;
+// ------------------------
+// 6. التنقل بين التبويبات (المنتجات / الأقسام)
+// ------------------------
+
+function showAdminTab(tab) {
+    const productsTab = document.getElementById('products-tab');
+    const categoriesTab = document.getElementById('categories-tab');
+    const buttons = document.querySelectorAll('.admin-tab');
+    
+    if (tab === 'products') {
+        productsTab.style.display = 'block';
+        categoriesTab.style.display = 'none';
+        buttons[0].classList.add('active');
+        buttons[1].classList.remove('active');
+    } else {
+        productsTab.style.display = 'none';
+        categoriesTab.style.display = 'block';
+        buttons[0].classList.remove('active');
+        buttons[1].classList.add('active');
+    }
+}
+
+// ------------------------
+// 7. نظام الدخول إلى لوحة التحكم
+// ------------------------
+
+function checkAdminLogin() {
+    const password = document.getElementById('admin-password')?.value;
     // 🔒 يمكنك تغيير كلمة المرور هنا
-    if(password === "dropshiping.iq"){ 
-        localStorage.setItem('admin_logged_in', 'true'); 
-        document.getElementById('login-screen').style.display = 'none'; 
-        document.getElementById('dashboard').style.display = 'block'; 
-        renderAdminProducts(); 
-        renderAdminCategories(); 
-        updateCategorySelect(); 
-    } else { 
-        alert("⚠️ كلمة المرور غير صحيحة"); 
-    } 
+    if (password === "admin123") {
+        localStorage.setItem('admin_logged_in', 'true');
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        loadData();  // تحميل البيانات بعد الدخول
+    } else {
+        alert("⚠️ كلمة المرور غير صحيحة");
+    }
 }
 
-function logout() { 
-    localStorage.removeItem('admin_logged_in'); 
-    location.reload(); 
+function logout() {
+    localStorage.removeItem('admin_logged_in');
+    location.reload();
 }
 
-if(localStorage.getItem('admin_logged_in') === 'true'){ 
-    document.getElementById('login-screen').style.display = 'none'; 
-    document.getElementById('dashboard').style.display = 'block'; 
-    renderAdminProducts(); 
-    renderAdminCategories(); 
-    updateCategorySelect(); 
-}
+// ------------------------
+// 8. التحقق من حالة الدخول عند تحميل الصفحة
+// ------------------------
+
+if (localStorage.getItem('admin_logged_in') === 'true') {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadData();
+        }
