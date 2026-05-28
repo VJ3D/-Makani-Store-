@@ -193,7 +193,7 @@ function showAdminTab(tab) {
 function checkAdminLogin() { 
     let password = document.getElementById('admin-password')?.value;
     // 🔒 يمكنك تغيير كلمة المرور هنا
-    if(password === "admin123"){ 
+    if(password === "dropshiping.iq"){ 
         localStorage.setItem('admin_logged_in', 'true'); 
         document.getElementById('login-screen').style.display = 'none'; 
         document.getElementById('dashboard').style.display = 'block'; 
