@@ -1,15 +1,13 @@
 // ==================================================
-// هذا الكود خاص بالزبون الذي يتصفح المتجر
+// script.js - ملف المتجر الرئيسي (للزبون)
 // ==================================================
 
 // ------------------------
 // 1. إعداد الاتصال بقاعدة البيانات (Supabase)
 // ------------------------
 
-// رابط مشروع Supabase الخاص بك (من إعدادات المشروع)
-const SUPABASE_URL = "https://ymfxhrbjqubgpgxzh oqx.supabase.co";
-
-// المفتاح العام (anon key) - يسمح فقط بقراءة البيانات
+// الرابط الصحيح (بدون مسافات أو شرطات)
+const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTc0MzksImV4cCI6MjA5NTUzMzQzOX0.4hahW-U_IOOBJFfwl2P0qdFl2gXp6QUVuanRis8XLt4";
 
 // إنشاء عميل Supabase للاتصال بقاعدة البيانات
