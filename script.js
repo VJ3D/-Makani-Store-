@@ -1,17 +1,21 @@
 // ==================================================
-// script.js - ملف المتجر الرئيسي (نسخة العمل النهائية)
+// script.js - النسخة النهائية القوية للمتجر
 // ==================================================
 
 // ------------------------
-// 1. إعداد الاتصال بقاعدة البيانات (Supabase)
+// 1. إعداد الاتصال بـ Supabase
 // ------------------------
-
-// استخدم نفس الرابط والمفتاح الذي يعمل في admin.js
 const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTc0MzksImV4cCI6MjA5NTUzMzQzOX0.4hahW-U_IOOBJFfwl2P0qdFl2gXp6QUVuanRis8XLt4";
 
-// إنشاء عميل Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// التأكد من أن المكتبة قد تحمّلت
+if (typeof window.supabase === 'undefined') {
+    console.error("❌ خطأ: مكتبة Supabase لم يتم تحميلها. تأكد من اتصالك بالإنترنت.");
+    alert("خطأ في التحميل، يرجى تحديث الصفحة.");
+} else {
+    var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("✅ تم تهيئة Supabase Client بنجاح");
+}
 
 // ------------------------
 // 2. المتغيرات العامة
@@ -21,10 +25,8 @@ let categories = [];
 let cart = JSON.parse(localStorage.getItem('makani_cart')) || [];
 
 // ------------------------
-// 3. دوال تحميل البيانات (محدثة)
+// 3. الدوال الأساسية (التحميل، العرض)
 // ------------------------
-
-// دالة لتحميل المنتجات
 async function loadProducts() {
     console.log("جاري تحميل المنتجات...");
     const { data, error } = await supabase
@@ -33,17 +35,15 @@ async function loadProducts() {
         .order('id', { ascending: true });
 
     if (error) {
-        console.error("خطأ في تحميل المنتجات:", error);
-        products = []; // اتركها فارغة بدلاً من بيانات افتراضية
+        console.error("فشل تحميل المنتجات:", error);
+        products = [];
     } else {
         products = data || [];
-        console.log("تم تحميل المنتجات:", products.length);
+        console.log(`✅ تم تحميل ${products.length} منتج.`);
     }
-    // إعادة رسم المنتجات بعد التحميل
     renderAllProducts();
 }
 
-// دالة لتحميل الأقسام
 async function loadCategories() {
     console.log("جاري تحميل الأقسام...");
     const { data, error } = await supabase
@@ -52,34 +52,27 @@ async function loadCategories() {
         .order('id', { ascending: true });
 
     if (error) {
-        console.error("خطأ في تحميل الأقسام:", error);
+        console.error("فشل تحميل الأقسام:", error);
         categories = [];
     } else {
         categories = data || [];
-        console.log("تم تحميل الأقسام:", categories.length);
+        console.log(`✅ تم تحميل ${categories.length} قسم.`);
     }
-    renderCategories(); // عرض الأقسام فور تحميلها
+    renderCategories();
 }
 
-// دالة مساعدة لإعادة رسم كل شيء بعد تحميل البيانات
 function renderAllProducts() {
-    // الصفحة الرئيسية: المنتجات المميزة
     if (document.getElementById('featured-products')) {
         renderProducts('featured-products', null, 4);
     }
-    // صفحة جميع المنتجات
     if (document.getElementById('all-products')) {
         const urlParams = new URLSearchParams(window.location.search);
         const categoryId = urlParams.get('cat');
         renderProducts('all-products', categoryId);
     }
-    // تحديث عداد السلة
     updateCartCount();
 }
 
-// ------------------------
-// 4. دوال العرض (بدون تغيير)
-// ------------------------
 function formatPrice(price) {
     return price.toLocaleString() + ' دينار';
 }
@@ -97,7 +90,7 @@ function renderProducts(containerId, filterCategory = null, limit = null) {
     }
 
     if (productsToShow.length === 0) {
-        container.innerHTML = '<p style="text-align:center; padding:40px;">✨ لا توجد منتجات في هذا القسم حالياً</p>';
+        container.innerHTML = '<div class="empty-state">✨ لا توجد منتجات في هذا القسم حالياً. أضف منتجاتك من لوحة التحكم.</div>';
         return;
     }
 
@@ -120,7 +113,7 @@ function renderCategories() {
     const grid = document.getElementById('categories-grid');
     if (grid) {
         if (categories.length === 0) {
-            grid.innerHTML = '<p style="text-align:center;">لا توجد أقسام مضافة بعد</p>';
+            grid.innerHTML = '<div class="empty-state">📂 لا توجد أقسام مضافة بعد. أضف أقسامك من لوحة التحكم.</div>';
             return;
         }
         grid.innerHTML = categories.map(category => `
@@ -139,7 +132,7 @@ function renderCategories() {
 }
 
 // ------------------------
-// 5. دوال السلة (بدون تغيير)
+// 4. دوال السلة (بدون تغيير)
 // ------------------------
 function saveCart() {
     localStorage.setItem('makani_cart', JSON.stringify(cart));
@@ -184,7 +177,7 @@ function renderCartPage() {
     if (!container) return;
 
     if (cart.length === 0) {
-        container.innerHTML = '<p style="text-align:center; padding:40px;">🛒 السلة فارغة حالياً</p>';
+        container.innerHTML = '<p class="empty-state">🛒 السلة فارغة حالياً</p>';
         if (totalSpan) totalSpan.innerText = '0 دينار';
         return;
     }
@@ -194,7 +187,7 @@ function renderCartPage() {
         total += item.price * item.quantity;
         return `
             <div class="cart-item">
-                <div style="flex:2"><strong>${item.name}</strong><br><small>${formatPrice(item.price)}</small></div>
+                <div><strong>${item.name}</strong><br><small>${formatPrice(item.price)}</small></div>
                 <div class="quantity-control">
                     <button onclick="changeQuantity(${item.id}, -1)">-</button>
                     <span>${item.quantity}</span>
@@ -254,9 +247,10 @@ function sendOrderToWhatsApp(event) {
 }
 
 // ------------------------
-// 6. تشغيل المتجر
+// 5. بدء تشغيل المتجر
 // ------------------------
 async function initializeSite() {
+    console.log("بدء تشغيل المتجر...");
     await loadCategories();
     await loadProducts();
     if (document.getElementById('cart-items-list')) renderCartPage();
@@ -264,7 +258,6 @@ async function initializeSite() {
     const orderForm = document.getElementById('order-form');
     if (orderForm) orderForm.addEventListener('submit', sendOrderToWhatsApp);
     
-    // إضافة مستمع تغيير الفلتر لصفحة المنتجات
     const filter = document.getElementById('category-filter');
     if (filter) {
         filter.addEventListener('change', (e) => renderProducts('all-products', e.target.value));
