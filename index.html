@@ -2,15 +2,22 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مكاني ستور | Makani Store</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>مكاني ستور | Makani Store - تسوق بثقة</title>
+    <meta name="description" content="متجر مكاني ستور - أفضل المنتجات مع خدمة الدفع عند الاستلام">
+    
+    <!-- الخطوط -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- التصميم -->
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
     <!-- مكتبة Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
+<!-- الشريط العلوي -->
 <div class="top-bar">
     <div class="container">
         <span>🚚 توصيل مجاني للطلبات فوق 200,000 دينار</span>
@@ -19,6 +26,7 @@
     </div>
 </div>
 
+<!-- الهيدر -->
 <header>
     <div class="container">
         <div class="logo">
@@ -34,42 +42,57 @@
             </a>
             <a href="admin.html" class="admin-link">🔐 لوحة التحكم</a>
         </nav>
+        <button class="mobile-menu-btn" id="menuToggle">☰</button>
     </div>
 </header>
 
+<!-- القسم الرئيسي -->
 <section class="hero">
     <div class="container">
         <div class="hero-content">
-            <span class="hero-badge">تسوق بأفضل الأسعار</span>
+            <span class="hero-badge">✨ تسوق بأفضل الأسعار</span>
             <h1>اكتشف عالم من <span class="gradient-text">الجودة</span> و <span class="gradient-text">الثقة</span></h1>
-            <p>أفضل المنتجات الأصلية مع خدمة توصيل سريعة وآمنة</p>
+            <p>أفضل المنتجات الأصلية مع خدمة توصيل سريعة وآمنة. الدفع عند الاستلام لراحتك التامة.</p>
             <div class="hero-buttons">
                 <a href="products.html" class="btn-primary">تسوق الآن →</a>
+                <a href="#categories" class="btn-outline">استكشف الأقسام</a>
             </div>
+        </div>
+        <div class="hero-image">
+            <div class="floating-card">🛍️ شحن سريع</div>
+            <div class="floating-card">💳 دفع آمن</div>
+            <div class="floating-card">⭐ ضمان الجودة</div>
         </div>
     </div>
 </section>
 
-<section class="categories">
+<!-- الأقسام -->
+<section class="categories" id="categories">
     <div class="container">
         <div class="section-header">
             <h2>📂 الأقسام</h2>
             <p>اختر القسم المناسب لك</p>
         </div>
-        <div class="categories-grid" id="categories-grid"></div>
+        <div class="categories-grid" id="categories-grid">
+            <div class="loading-spinner">جاري التحميل...</div>
+        </div>
     </div>
 </section>
 
+<!-- المنتجات المميزة -->
 <section class="featured-products">
     <div class="container">
         <div class="section-header">
             <h2>✨ منتجات مميزة</h2>
             <p>أجود المنتجات بأفضل العروض</p>
         </div>
-        <div class="products-grid" id="featured-products"></div>
+        <div class="products-grid" id="featured-products">
+            <div class="loading-spinner">جاري تحميل المنتجات...</div>
+        </div>
     </div>
 </section>
 
+<!-- المميزات -->
 <section class="features">
     <div class="container">
         <div class="feature-card"><div class="feature-icon">🚚</div><h3>توصيل سريع</h3><p>2-5 أيام عمل</p></div>
@@ -79,12 +102,13 @@
     </div>
 </section>
 
+<!-- الفوتر -->
 <footer>
     <div class="container">
         <div class="footer-content">
             <div class="footer-col">
                 <h3>📍 مكاني ستور</h3>
-                <p>متجرك الموثوق للتسوق الإلكتروني</p>
+                <p>متجرك الموثوق للتسوق الإلكتروني. نقدم أفضل المنتجات بأفضل الأسعار مع خدمة الدفع عند الاستلام.</p>
             </div>
             <div class="footer-col">
                 <h4>روابط سريعة</h4>
@@ -96,6 +120,7 @@
                 <h4>تواصل معنا</h4>
                 <p>📧 info@makanistore.com</p>
                 <p>📞 9200 12345</p>
+                <p>🇮🇶 العراق - جميع المحافظات</p>
             </div>
         </div>
         <div class="footer-bottom">
@@ -105,5 +130,11 @@
 </footer>
 
 <script src="script.js"></script>
+<script>
+    // قائمة بسيطة للقائمة في الجوال
+    document.getElementById('menuToggle')?.addEventListener('click', function() {
+        document.querySelector('nav').classList.toggle('show');
+    });
+</script>
 </body>
 </html>
