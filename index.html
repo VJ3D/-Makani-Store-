@@ -6,18 +6,12 @@
     <title>مكاني ستور | Makani Store - تسوق بثقة</title>
     <meta name="description" content="متجر مكاني ستور - أفضل المنتجات مع خدمة الدفع عند الاستلام">
     
-    <!-- الخطوط -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-    
-    <!-- التصميم -->
     <link rel="stylesheet" href="style.css">
-    
-    <!-- مكتبة Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<!-- الشريط العلوي -->
 <div class="top-bar">
     <div class="container">
         <span>🚚 توصيل مجاني للطلبات فوق 200,000 دينار</span>
@@ -26,7 +20,6 @@
     </div>
 </div>
 
-<!-- الهيدر -->
 <header>
     <div class="container">
         <div class="logo">
@@ -40,13 +33,11 @@
                 🛒 السلة 
                 <span class="cart-badge" id="cart-count">0</span>
             </a>
-            <a href="admin.html" class="admin-link">🔐 لوحة التحكم</a>
         </nav>
         <button class="mobile-menu-btn" id="menuToggle">☰</button>
     </div>
 </header>
 
-<!-- القسم الرئيسي -->
 <section class="hero">
     <div class="container">
         <div class="hero-content">
@@ -66,7 +57,6 @@
     </div>
 </section>
 
-<!-- الأقسام -->
 <section class="categories" id="categories">
     <div class="container">
         <div class="section-header">
@@ -79,7 +69,6 @@
     </div>
 </section>
 
-<!-- المنتجات المميزة -->
 <section class="featured-products">
     <div class="container">
         <div class="section-header">
@@ -92,7 +81,6 @@
     </div>
 </section>
 
-<!-- المميزات -->
 <section class="features">
     <div class="container">
         <div class="feature-card"><div class="feature-icon">🚚</div><h3>توصيل سريع</h3><p>2-5 أيام عمل</p></div>
@@ -102,7 +90,6 @@
     </div>
 </section>
 
-<!-- الفوتر -->
 <footer>
     <div class="container">
         <div class="footer-content">
@@ -120,7 +107,7 @@
                 <h4>تواصل معنا</h4>
                 <p>📧 info@makanistore.com</p>
                 <p>📞 9200 12345</p>
-                <p>🇮🇶 العراق - جميع المحافظات</p>
+                <p>🇮🇶 العراق - جميع المدن</p>
             </div>
         </div>
         <div class="footer-bottom">
@@ -131,7 +118,6 @@
 
 <script src="script.js"></script>
 <script>
-    // قائمة بسيطة للقائمة في الجوال
     document.getElementById('menuToggle')?.addEventListener('click', function() {
         document.querySelector('nav').classList.toggle('show');
     });
