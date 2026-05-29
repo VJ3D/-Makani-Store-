@@ -1,5 +1,5 @@
 // ==================================================
-// script.js - النسخة الآمنة مع نظام حماية ذاتي
+// script.js - نسخة مع أزرار سلة كبيرة جداً
 // ==================================================
 
 const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
@@ -9,55 +9,28 @@ let supabaseClient;
 let products = [];
 let categories = [];
 let cart = JSON.parse(localStorage.getItem('makani_cart')) || [];
-let isLoading = false; // 1. الحماية: منع التحميل المتكرر
+let isLoading = false;
 
-// تهيئة العميل
 if (typeof window.supabase !== 'undefined') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("Supabase ready");
 }
 
-// 2. دالة تحميل آمنة: تمنع الطلبات المتزامنة
-async function loadDataOnce(key, loadFunction) {
-    if (isLoading) return; // إذا كان هناك تحميل جارٍ، اخرج
-    const cache = localStorage.getItem(key);
-    const cacheTime = localStorage.getItem(`${key}_time`);
-
-    // استخدم البيانات المخزنة إذا كانت حديثة (أقل من 5 دقائق)
-    if (cache && cacheTime && (Date.now() - parseInt(cacheTime) < 300000)) {
-        if (key === 'products') products = JSON.parse(cache);
-        if (key === 'categories') categories = JSON.parse(cache);
-        renderAll();
-        return;
-    }
-
-    // وإلا، حمل بيانات جديدة
+async function loadData() {
+    if (isLoading) return;
     isLoading = true;
     try {
-        const data = await loadFunction();
-        localStorage.setItem(key, JSON.stringify(data));
-        localStorage.setItem(`${key}_time`, Date.now().toString());
-        if (key === 'products') products = data;
-        if (key === 'categories') categories = data;
+        const { data: productsData } = await supabaseClient.from('products').select('*').order('id');
+        const { data: categoriesData } = await supabaseClient.from('categories').select('*').order('id');
+        if (productsData) products = productsData;
+        if (categoriesData) categories = categoriesData;
         renderAll();
     } catch (error) {
-        console.error(`فشل تحميل ${key}:`, error);
+        console.error("خطأ:", error);
     } finally {
         isLoading = false;
     }
 }
 
-async function fetchProducts() {
-    const { data } = await supabaseClient.from('products').select('*').order('id');
-    return data || [];
-}
-
-async function fetchCategories() {
-    const { data } = await supabaseClient.from('categories').select('*').order('id');
-    return data || [];
-}
-
-// 3. دوال العرض (نفسها ولكن مع مزامنة أفضل)
 function renderAll() {
     if (document.getElementById('featured-products')) renderProducts('featured-products', null, 4);
     if (document.getElementById('all-products')) {
@@ -83,7 +56,7 @@ function renderProducts(containerId, filterCat, limit) {
             <h3>${p.name}</h3>
             <div class="price">${p.price.toLocaleString()} دينار</div>
             <small>${cat ? cat.icon + ' ' + cat.name : ''}</small>
-            <button class="add-to-cart" onclick="addToCart(${p.id})">➕ أضف</button>
+            <button class="add-to-cart" onclick="addToCart(${p.id})">➕ أضف للسلة</button>
         </div>`;
     }).join('');
 }
@@ -93,12 +66,10 @@ function renderCategories() {
     if (!grid) return;
     if (!categories.length) { grid.innerHTML = '<div class="empty-state">📂 لا توجد أقسام</div>'; return; }
     grid.innerHTML = categories.map(c => `<a href="products.html?cat=${c.id}" class="category-card"><div class="category-icon">${c.icon}</div><h3>${c.name}</h3></a>`).join('');
-
     const filter = document.getElementById('category-filter');
     if (filter) filter.innerHTML = '<option value="all">جميع الأقسام</option>' + categories.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
 }
 
-// دوال السلة (آمنة بدون طلبات خارجية)
 function saveCart() { localStorage.setItem('makani_cart', JSON.stringify(cart)); updateCartCount(); }
 function updateCartCount() { document.querySelectorAll('#cart-count').forEach(b => { if (b) b.innerText = cart.reduce((s, i) => s + i.quantity, 0); }); }
 
@@ -112,43 +83,95 @@ window.addToCart = function(id) {
     if (document.getElementById('cart-items-list')) renderCartPage();
 };
 
+// ==========================================
+// ه这里是 المهم: دالة عرض السلة بأزرار كبيرة
+// ==========================================
 function renderCartPage() {
     const container = document.getElementById('cart-items-list');
     const totalSpan = document.getElementById('cart-total');
     if (!container) return;
-    if (!cart.length) { container.innerHTML = '<div class="empty-cart">السلة فارغة</div>'; if (totalSpan) totalSpan.innerText = '0 دينار'; return; }
+    
+    if (!cart.length) {
+        container.innerHTML = '<div style="text-align:center; padding:50px; color:#8899aa;">🛒 السلة فارغة</div>';
+        if (totalSpan) totalSpan.innerText = '0 دينار';
+        return;
+    }
+    
     let total = 0;
-    container.innerHTML = cart.map(i => { total += i.price * i.quantity; return `<div class="cart-item"><div>${i.name}<br><small>${i.price.toLocaleString()} دينار</small></div><div><button onclick="changeQty(${i.id},-1)">-</button><span>${i.quantity}</span><button onclick="changeQty(${i.id},1)">+</button><button onclick="removeFromCart(${i.id})">🗑️</button></div><div>${(i.price * i.quantity).toLocaleString()} دينار</div></div>`; }).join('');
+    let html = '';
+    
+    for (let i = 0; i < cart.length; i++) {
+        const item = cart[i];
+        total += item.price * item.quantity;
+        
+        html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 25px 0; border-bottom: 2px solid #eef2f6; flex-wrap: wrap; gap: 20px; margin-bottom: 10px;">
+                
+                <div style="flex: 2; min-width: 150px;">
+                    <strong style="font-size: 1.1rem;">${item.name}</strong><br>
+                    <small style="font-size: 0.9rem; color: #64748b;">${item.price.toLocaleString()} دينار</small>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 25px; background: #f1f5f9; padding: 8px 20px; border-radius: 80px;">
+                    <button onclick="changeQty(${item.id}, -1)" style="width: 65px; height: 65px; border-radius: 50%; border: none; background: white; cursor: pointer; font-size: 2.2rem; font-weight: bold; color: #0284c7; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">-</button>
+                    <span style="font-size: 1.6rem; font-weight: bold; min-width: 55px; text-align: center;">${item.quantity}</span>
+                    <button onclick="changeQty(${item.id}, 1)" style="width: 65px; height: 65px; border-radius: 50%; border: none; background: white; cursor: pointer; font-size: 2.2rem; font-weight: bold; color: #0284c7; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">+</button>
+                </div>
+                
+                <div style="min-width: 130px; text-align: left;">
+                    <span style="font-weight: bold; font-size: 1.2rem; color: #0284c7;">${(item.price * item.quantity).toLocaleString()} دينار</span>
+                </div>
+                
+                <button onclick="removeFromCart(${item.id})" style="background: #fee2e2; border: none; width: 65px; height: 65px; border-radius: 50%; cursor: pointer; font-size: 1.8rem; color: #e63946; display: inline-flex; align-items: center; justify-content: center;">🗑️</button>
+                
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
     if (totalSpan) totalSpan.innerText = total.toLocaleString() + ' دينار';
 }
 
 window.changeQty = function(id, d) {
     const i = cart.find(i => i.id == id);
     const p = products.find(p => p.id == id);
-    if (i) { const n = i.quantity + d; if (n <= 0) cart = cart.filter(x => x.id != id); else if (p && n <= p.stock) i.quantity = n; else { alert("الكمية غير متوفرة"); return; } saveCart(); renderCartPage(); }
+    if (i) {
+        const n = i.quantity + d;
+        if (n <= 0) cart = cart.filter(x => x.id != id);
+        else if (p && n <= p.stock) i.quantity = n;
+        else { alert("الكمية غير متوفرة"); return; }
+        saveCart();
+        renderCartPage();
+    }
 };
-window.removeFromCart = (id) => { cart = cart.filter(i => i.id != id); saveCart(); renderCartPage(); };
 
-// إرسال الطلب (بدون تغيير)
+window.removeFromCart = (id) => { 
+    cart = cart.filter(i => i.id != id); 
+    saveCart(); 
+    renderCartPage(); 
+};
+
 function sendOrderToWhatsApp(e) {
     e.preventDefault();
     if (!cart.length) return alert("السلة فارغة");
-    const name = document.getElementById('customer-name')?.value, phone = document.getElementById('customer-phone')?.value, address = document.getElementById('customer-address')?.value;
-    if (!name || !phone || !address) return alert("املأ الحقول");
+    const name = document.getElementById('customer-name')?.value;
+    const phone = document.getElementById('customer-phone')?.value;
+    const address = document.getElementById('customer-address')?.value;
+    if (!name || !phone || !address) return alert("املأ جميع الحقول");
+    
     const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-    let msg = `🛍️ طلب جديد\n👤: ${name}\n📱: ${phone}\n📍: ${address}\n━━━━━━\n`;
-    cart.forEach(i => { msg += `${i.name} x${i.quantity} = ${(i.price * i.quantity).toLocaleString()} دينار\n`; });
-    msg += `━━━━━━\n💰 الإجمالي: ${total.toLocaleString()} دينار\n💵 دفع عند الاستلام`;
+    let msg = `🛍️ طلب جديد من مكاني ستور\n\n👤 الاسم: ${name}\n📱 الجوال: ${phone}\n📍 العنوان: ${address}\n━━━━━━━━━━━━\nالمنتجات:\n`;
+    cart.forEach(i => { msg += `• ${i.name} × ${i.quantity} = ${(i.price * i.quantity).toLocaleString()} دينار\n`; });
+    msg += `━━━━━━━━━━━━\n💰 الإجمالي: ${total.toLocaleString()} دينار\n💵 الدفع عند الاستلام`;
     window.open(`https://wa.me/964700000000?text=${encodeURIComponent(msg)}`, '_blank');
-    cart = []; saveCart();
-    alert("تم فتح واتساب");
-    setTimeout(() => window.location.href = "index.html", 1000);
+    cart = [];
+    saveCart();
+    alert("✅ تم فتح واتساب");
+    setTimeout(() => window.location.href = "index.html", 1500);
 }
 
-// بدء التشغيل الآمن
 document.addEventListener('DOMContentLoaded', () => {
-    loadDataOnce('categories', fetchCategories);
-    loadDataOnce('products', fetchProducts);
+    loadData();
     if (document.getElementById('order-form')) document.getElementById('order-form').addEventListener('submit', sendOrderToWhatsApp);
     const filter = document.getElementById('category-filter');
     if (filter) filter.addEventListener('change', (e) => renderProducts('all-products', e.target.value));
