@@ -106,12 +106,6 @@ nav a:hover, nav a.active {
     right: -15px;
 }
 
-.admin-link {
-    background: #f1f5f9;
-    padding: 6px 14px;
-    border-radius: 40px;
-}
-
 .mobile-menu-btn {
     display: none;
     background: none;
@@ -147,9 +141,16 @@ nav a:hover, nav a.active {
 
 .hero h1 {
     font-size: 2.8rem;
-    line-height: 1.2;
+    line-height: 1.4;
     margin-bottom: 20px;
     color: #0f172a;
+    letter-spacing: 0px;
+}
+
+/* حل مشكلة قطع الحروف - زيادة المسافات */
+.hero h1 span {
+    display: inline-block;
+    padding: 0 2px;
 }
 
 .gradient-text {
@@ -163,6 +164,7 @@ nav a:hover, nav a.active {
     color: #475569;
     margin-bottom: 30px;
     font-size: 1.1rem;
+    line-height: 1.6;
 }
 
 .btn-primary {
@@ -212,6 +214,7 @@ nav a:hover, nav a.active {
     min-height: 300px;
 }
 
+/* المستطيلات العائمة */
 .floating-card {
     background: white;
     border-radius: 20px;
@@ -220,6 +223,7 @@ nav a:hover, nav a.active {
     font-weight: 500;
     position: absolute;
     animation: float 3s ease-in-out infinite;
+    white-space: nowrap;
 }
 
 .floating-card:nth-child(1) { top: 20px; right: 20px; animation-delay: 0s; }
@@ -403,7 +407,6 @@ footer {
     cursor: pointer;
 }
 
-/* ========== أزرار التحميل ========== */
 .loading-spinner {
     text-align: center;
     padding: 40px;
@@ -416,7 +419,7 @@ footer {
     color: #64748b;
 }
 
-/* ========== استجابة للجوال (معدلة لإظهار البطاقات العائمة) ========== */
+/* ========== استجابة للجوال (معدلة) ========== */
 @media (max-width: 768px) {
     .hero .container {
         grid-template-columns: 1fr;
@@ -424,7 +427,15 @@ footer {
     }
     
     .hero h1 {
-        font-size: 2rem;
+        font-size: 1.8rem;
+        line-height: 1.5;
+    }
+    
+    /* زيادة المسافات بين الحروف لمنع القص */
+    .hero h1 .gradient-text {
+        display: inline-block;
+        padding: 0 4px;
+        letter-spacing: 0.5px;
     }
     
     nav {
@@ -448,25 +459,28 @@ footer {
         display: block;
     }
     
-    /* البطاقات العائمة تظهر بشكل عمودي في الوضع العمودي */
+    /* المستطيلات العائمة - بجانب بعضها أفقياً */
+    .hero-image {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 30px;
+        min-height: auto;
+        position: static;
+    }
+    
     .floating-card {
         position: relative;
-        display: block;
-        margin: 10px auto;
-        width: fit-content;
+        display: inline-block;
+        margin: 0;
+        width: auto;
         left: auto !important;
         right: auto !important;
         bottom: auto !important;
         top: auto !important;
-    }
-    
-    .hero-image {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 15px;
-        margin-top: 30px;
-        min-height: auto;
+        white-space: nowrap;
     }
     
     .products-header {
