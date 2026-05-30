@@ -1,6 +1,5 @@
 // ==================================================
-// script.js - المتجر الأساسي (يقرأ من Supabase)
-// سريع ويدعم التحميل التدريجي
+// script.js - المتجر الأساسي (مع فلترة الأقسام)
 // ==================================================
 
 // إعدادات Supabase
@@ -15,6 +14,7 @@ let currentPage = 0;
 let isLoading = false;
 let hasMore = true;
 let detailQuantity = 1;
+let currentCategoryFilter = null;
 const PRODUCTS_PER_PAGE = 12;
 
 // تهيئة Supabase
@@ -49,11 +49,18 @@ async function fetchProductsPage(page, limit = PRODUCTS_PER_PAGE) {
         const from = page * limit;
         const to = from + limit - 1;
         
-        const { data, error, count } = await supabaseClient
+        let query = supabaseClient
             .from('products')
             .select('*', { count: 'exact' })
             .range(from, to)
             .order('id');
+        
+        // تطبيق فلتر القسم إذا كان موجوداً
+        if (currentCategoryFilter) {
+            query = query.eq('category_id', currentCategoryFilter);
+        }
+        
+        const { data, error, count } = await query;
         
         if (error) throw error;
         return { data: data || [], total: count };
@@ -122,7 +129,7 @@ function renderProducts() {
     if (!container) return;
     
     if (products.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:40px;">✨ لا توجد منتجات</div>';
+        container.innerHTML = '<div style="text-align:center; padding:40px;">✨ لا توجد منتجات في هذا القسم</div>';
         return;
     }
 
@@ -169,16 +176,30 @@ function renderCategories() {
             categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         
         filter.onchange = async function() {
-            const catId = this.value === 'all' ? null : parseInt(this.value);
-            if (catId) {
-                const { data } = await supabaseClient
-                    .from('products')
-                    .select('*')
-                    .eq('category_id', catId);
-                products = data || [];
-                hasMore = false;
-                renderProducts();
+            const catId = this.value === 'all' ? null : this.value;
+            
+            // تحديث عنوان الصفحة
+            const titleElement = document.querySelector('.products-header h2');
+            
+            if (catId && catId !== 'all') {
+                currentCategoryFilter = parseInt(catId);
+                const categoryName = categories.find(c => c.id == currentCategoryFilter)?.name || 'القسم';
+                if (titleElement) titleElement.innerHTML = `📦 منتجات ${categoryName}`;
+                
+                // إعادة تحميل المنتجات حسب القسم
+                products = [];
+                currentPage = 0;
+                hasMore = true;
+                await loadInitialProducts();
+                setupInfiniteScroll();
             } else {
+                currentCategoryFilter = null;
+                if (titleElement) titleElement.innerHTML = `📦 جميع المنتجات`;
+                
+                // إعادة تحميل جميع المنتجات
+                products = [];
+                currentPage = 0;
+                hasMore = true;
                 await loadInitialProducts();
                 setupInfiniteScroll();
             }
@@ -187,7 +208,18 @@ function renderCategories() {
 }
 
 // ==========================================
-// المنتجات المميزة
+// جلب منتجات القسم (لصفحة التفاصيل)
+// ==========================================
+async function fetchProductsByCategory(categoryId) {
+    const { data } = await supabaseClient
+        .from('products')
+        .select('*')
+        .eq('category_id', categoryId);
+    return data || [];
+}
+
+// ==========================================
+// المنتجات المميزة (أول 4 منتجات)
 // ==========================================
 async function loadFeaturedProducts() {
     const { data } = await supabaseClient
@@ -237,14 +269,17 @@ function showLoading(show) {
 }
 
 function setupInfiniteScroll() {
-    window.addEventListener('scroll', () => {
-        const scrollPosition = window.scrollY + window.innerHeight;
-        const pageHeight = document.documentElement.scrollHeight;
-        
-        if (scrollPosition >= pageHeight - 300) {
-            loadMoreProducts();
-        }
-    });
+    window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll);
+}
+
+function handleScroll() {
+    const scrollPosition = window.scrollY + window.innerHeight;
+    const pageHeight = document.documentElement.scrollHeight;
+    
+    if (scrollPosition >= pageHeight - 300) {
+        loadMoreProducts();
+    }
 }
 
 // ==========================================
@@ -259,6 +294,21 @@ async function loadData() {
     await loadFeaturedProducts();
     
     if (document.getElementById('all-products')) {
+        // التحقق من وجود معامل القسم في الرابط
+        const urlParams = new URLSearchParams(window.location.search);
+        const catParam = urlParams.get('cat');
+        
+        if (catParam && catParam !== 'all') {
+            currentCategoryFilter = parseInt(catParam);
+            const categoryName = categories.find(c => c.id == currentCategoryFilter)?.name || 'القسم';
+            const titleElement = document.querySelector('.products-header h2');
+            if (titleElement) titleElement.innerHTML = `📦 منتجات ${categoryName}`;
+            
+            // تحديث القائمة المنسدلة
+            const filter = document.getElementById('category-filter');
+            if (filter) filter.value = catParam;
+        }
+        
         await loadInitialProducts();
         setupInfiniteScroll();
     }
@@ -427,29 +477,4 @@ function sendOrderToWhatsApp(e) {
     if (!name || !phone || !address) return alert("املأ جميع الحقول");
     const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
     let msg = `🛍️ طلب جديد من مكاني ستور\n\n👤 الاسم: ${name}\n📱 الجوال: ${phone}\n📍 العنوان: ${address}\n━━━━━━━━━━━━\nالمنتجات:\n`;
-    cart.forEach(i => { msg += `• ${i.name} × ${i.quantity} = ${(i.price * i.quantity).toLocaleString()} دينار\n`; });
-    msg += `━━━━━━━━━━━━\n💰 الإجمالي: ${total.toLocaleString()} دينار\n💵 الدفع عند الاستلام`;
-    window.open(`https://wa.me/964700000000?text=${encodeURIComponent(msg)}`, '_blank');
-    cart = [];
-    saveCart();
-    alert("✅ تم فتح واتساب");
-    setTimeout(() => window.location.href = "index.html", 1500);
-}
-
-// ==========================================
-// دوال عامة
-// ==========================================
-window.goToProductDetail = function(id) {
-    window.location.href = `product-detail.html?id=${id}`;
-};
-
-// ==========================================
-// بدء التشغيل
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 بدء تشغيل المتجر الأساسي - يعمل من Supabase");
-    loadData();
-    if (document.getElementById('order-form')) {
-        document.getElementById('order-form').addEventListener('submit', sendOrderToWhatsApp);
-    }
-});
+    car
