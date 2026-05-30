@@ -1,6 +1,5 @@
 /* ==================================================
    مكاني ستور - التصميم الرئيسي
-   الألوان: سماوي فاتح، أبيض، رمادي فاتح
    ================================================== */
 
 * {
@@ -417,7 +416,7 @@ footer {
     color: #64748b;
 }
 
-/* ========== استجابة للجوال ========== */
+/* ========== استجابة للجوال (معدلة لإظهار البطاقات العائمة) ========== */
 @media (max-width: 768px) {
     .hero .container {
         grid-template-columns: 1fr;
@@ -449,8 +448,25 @@ footer {
         display: block;
     }
     
+    /* البطاقات العائمة تظهر بشكل عمودي في الوضع العمودي */
     .floating-card {
-        display: none;
+        position: relative;
+        display: block;
+        margin: 10px auto;
+        width: fit-content;
+        left: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        top: auto !important;
+    }
+    
+    .hero-image {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        margin-top: 30px;
+        min-height: auto;
     }
     
     .products-header {
