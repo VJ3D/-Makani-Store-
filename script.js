@@ -1,5 +1,5 @@
 // ==================================================
-// script.js - النسخة النهائية
+// script.js - الإصدار الكامل مع الصور الحقيقية
 // ==================================================
 
 const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
@@ -12,13 +12,6 @@ if (typeof window.supabase !== 'undefined') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-// ألوان عشوائية جميلة للصور الافتراضية
-const colors = ['#0284c7', '#0891b2', '#059669', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#4f46e5'];
-
-function getRandomColor() {
-    return colors[Math.floor(Math.random() * colors.length)];
-}
-
 // ==========================================
 // تحميل وعرض المنتجات
 // ==========================================
@@ -26,34 +19,39 @@ async function loadData() {
     console.log("🚀 بدء التحميل...");
     
     // جلب الأقسام
-    const { data: categories } = await supabaseClient.from('categories').select('*').limit(20);
+    const { data: categories } = await supabaseClient
+        .from('categories')
+        .select('*')
+        .order('id');
+    
     const categoriesGrid = document.getElementById('categories-grid');
     if (categoriesGrid && categories) {
         categoriesGrid.innerHTML = categories.map(c => `
-            <a href="products.html?cat=${c.id}" class="category-card" style="text-decoration:none; display:block; background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); transition:transform 0.2s;">
-                <div style="font-size:3rem; margin-bottom:10px;">📁</div>
-                <h3 style="margin:0;">${c.name}</h3>
+            <a href="products.html?cat=${c.id}" class="category-card" style="text-decoration:none; display:block; background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+                <div style="font-size:2rem; margin-bottom:10px;">
+                    ${c.image ? `<img src="${c.image}" style="width:60px; height:60px; object-fit:cover; border-radius:50%;">` : '📁'}
+                </div>
+                <h3>${c.name}</h3>
             </a>
         `).join('');
     }
     
     // جلب المنتجات المميزة (أول 4)
-    const { data: featured } = await supabaseClient.from('products').select('*').limit(4);
+    const { data: featured } = await supabaseClient
+        .from('products')
+        .select('*')
+        .limit(4);
+    
     const featuredContainer = document.getElementById('featured-products');
     if (featuredContainer && featured) {
-        featuredContainer.innerHTML = featured.map(p => {
-            const color = getRandomColor();
-            return `
-                <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer; transition:transform 0.2s;" onclick="goToProductDetail(${p.id})">
-                    <div style="background:${color}; height:150px; display:flex; align-items:center; justify-content:center; border-radius:16px; margin-bottom:15px; color:white; font-size:3rem;">
-                        🛍️
-                    </div>
-                    <h3 style="margin:10px 0 5px; font-size:1rem;">${p.name.length > 30 ? p.name.substring(0,27)+'...' : p.name}</h3>
-                    <div style="color:#0284c7; font-weight:bold; font-size:1.2rem;">${p.price.toLocaleString()} دينار</div>
-                    <button onclick="event.stopPropagation(); addToCart(${p.id})" style="background:#f1f5f9; border:none; padding:8px 16px; border-radius:30px; cursor:pointer; width:100%; margin-top:10px;">➕ أضف للسلة</button>
-                </div>
-            `;
-        }).join('');
+        featuredContainer.innerHTML = featured.map(p => `
+            <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer;" onclick="goToProductDetail(${p.id})">
+                <img src="${p.image || 'https://placehold.co/400x400/0284c7/white?text=منتج'}" style="width:100%; height:160px; object-fit:cover; border-radius:16px; background:#f1f5f9;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
+                <h3 style="margin:12px 0 5px;">${p.name}</h3>
+                <div style="color:#0284c7; font-weight:bold;">${p.price.toLocaleString()} دينار</div>
+                <button onclick="event.stopPropagation(); addToCart(${p.id})" style="background:#f1f5f9; border:none; padding:8px 16px; border-radius:30px; cursor:pointer; width:100%; margin-top:10px;">➕ أضف</button>
+            </div>
+        `).join('');
     }
     
     // صفحة جميع المنتجات
@@ -64,28 +62,22 @@ async function loadData() {
         let query = supabaseClient.from('products').select('*');
         if (catId && catId !== 'all') {
             query = query.eq('category_id', parseInt(catId));
-            const { data: categoriesData } = await supabaseClient.from('categories').select('*');
-            const categoryName = categoriesData?.find(c => c.id == parseInt(catId))?.name;
+            const category = categories.find(c => c.id == parseInt(catId));
             const titleEl = document.querySelector('.products-header h2');
-            if (titleEl && categoryName) titleEl.innerHTML = `📦 منتجات ${categoryName}`;
+            if (titleEl && category) titleEl.innerHTML = `📦 منتجات ${category.name}`;
         }
         
-        const { data: allProducts } = await query.limit(100);
+        const { data: allProducts } = await query;
         const container = document.getElementById('all-products');
         if (container && allProducts) {
-            container.innerHTML = allProducts.map(p => {
-                const color = getRandomColor();
-                return `
-                    <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer; transition:transform 0.2s;" onclick="goToProductDetail(${p.id})">
-                        <div style="background:${color}; height:150px; display:flex; align-items:center; justify-content:center; border-radius:16px; margin-bottom:15px; color:white; font-size:3rem;">
-                            🛍️
-                        </div>
-                        <h3 style="margin:10px 0 5px; font-size:0.95rem;">${p.name.length > 35 ? p.name.substring(0,32)+'...' : p.name}</h3>
-                        <div style="color:#0284c7; font-weight:bold; font-size:1.1rem;">${p.price.toLocaleString()} دينار</div>
-                        <button onclick="event.stopPropagation(); addToCart(${p.id})" style="background:#f1f5f9; border:none; padding:8px 16px; border-radius:30px; cursor:pointer; width:100%; margin-top:10px;">➕ أضف للسلة</button>
-                    </div>
-                `;
-            }).join('');
+            container.innerHTML = allProducts.map(p => `
+                <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer;" onclick="goToProductDetail(${p.id})">
+                    <img src="${p.image || 'https://placehold.co/400x400/0284c7/white?text=منتج'}" style="width:100%; height:160px; object-fit:cover; border-radius:16px; background:#f1f5f9;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
+                    <h3 style="margin:12px 0 5px;">${p.name}</h3>
+                    <div style="color:#0284c7; font-weight:bold;">${p.price.toLocaleString()} دينار</div>
+                    <button onclick="event.stopPropagation(); addToCart(${p.id})" style="background:#f1f5f9; border:none; padding:8px 16px; border-radius:30px; cursor:pointer; width:100%; margin-top:10px;">➕ أضف</button>
+                </div>
+            `).join('');
         }
     }
     
@@ -113,31 +105,31 @@ async function loadProductDetail() {
         return;
     }
     
-    const color = getRandomColor();
+    const { data: categories } = await supabaseClient.from('categories').select('*');
+    const category = categories?.find(c => c.id == product.category_id);
     
     container.innerHTML = `
         <div style="background:white; border-radius:32px; padding:30px; margin:40px 0; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
             <div style="text-align:center;">
-                <div style="background:${color}; height:300px; display:flex; align-items:center; justify-content:center; border-radius:24px; color:white; font-size:5rem;">
-                    🛍️
-                </div>
+                <img src="${product.image || 'https://placehold.co/400x400/0284c7/white?text=منتج'}" style="max-width:100%; border-radius:24px;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
             </div>
             <div>
-                <h1 style="font-size:1.8rem; margin-bottom:15px;">${product.name}</h1>
-                <div style="font-size:2rem; font-weight:bold; color:#0284c7; margin:20px 0;">${product.price.toLocaleString()} دينار</div>
+                <span style="display:inline-block; background:#e0f2fe; padding:6px 16px; border-radius:30px;">${category ? category.name : 'منتج'}</span>
+                <h1 style="font-size:1.8rem; margin:15px 0;">${product.name}</h1>
+                <div style="font-size:2rem; font-weight:bold; color:#0284c7;">${product.price.toLocaleString()} دينار</div>
                 <div style="color:#475569; line-height:1.8; margin:20px 0; padding:15px 0; border-top:1px solid #eef2f6; border-bottom:1px solid #eef2f6;">
-                    ${product.description || 'لا يوجد وصف متاح لهذا المنتج'}
+                    ${product.description || 'لا يوجد وصف متاح'}
                 </div>
                 <div style="display:flex; align-items:center; gap:20px; margin:25px 0;">
                     <label>الكمية:</label>
                     <div style="display:flex; align-items:center; gap:12px; background:#f1f5f9; padding:5px 15px; border-radius:60px;">
-                        <button onclick="changeDetailQty(-1)" style="width:45px; height:45px; border-radius:50%; border:none; background:white; cursor:pointer; font-size:1.3rem;">-</button>
+                        <button onclick="changeDetailQty(-1)" style="width:45px; height:45px; border-radius:50%; border:none; background:white; cursor:pointer;">-</button>
                         <span id="detail-qty" style="font-size:1.3rem; min-width:45px; text-align:center;">1</span>
-                        <button onclick="changeDetailQty(1)" style="width:45px; height:45px; border-radius:50%; border:none; background:white; cursor:pointer; font-size:1.3rem;">+</button>
+                        <button onclick="changeDetailQty(1)" style="width:45px; height:45px; border-radius:50%; border:none; background:white; cursor:pointer;">+</button>
                     </div>
                 </div>
                 <button onclick="addToCartFromDetail(${product.id})" style="background:linear-gradient(135deg,#0284c7,#0ea5e9); color:white; border:none; padding:14px 32px; border-radius:50px; font-size:1.1rem; font-weight:bold; cursor:pointer; width:100%;">🛒 إضافة إلى السلة</button>
-                <a href="products.html" style="display:inline-block; margin-top:20px; color:#0284c7; text-decoration:none;">← العودة إلى المنتجات</a>
+                <a href="products.html" style="display:inline-block; margin-top:20px; color:#0284c7;">← العودة إلى المنتجات</a>
             </div>
         </div>
     `;
