@@ -1,10 +1,9 @@
 // ==================================================
-// script.js - نسخة كاملة ومصلحة ومحسنة 100%
-// الإصدار: 3.0 - يدعم الصور الحقيقية وفلترة الأقسام ومعرض الصور
+// script.js - نسخة مصلحة بالكامل ومستقرة وسريعة
 // ==================================================
 
 const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTc0MzksImV4cCI6MjA5NTUzMzQzOX0.4hahW-U_IOOBJFfwl2P0qdFl2gXp6QUVuanRis8XLt4\";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTc0MzksImV4cCI6MjA5NTUzMzQzOX0.4hahW-U_IOOBJFfwl2P0qdFl2gXp6QUVuanRis8XLt4";
 
 let supabaseClient;
 let products = [];
@@ -16,10 +15,8 @@ let hasMore = true;
 let currentCategoryFilter = null;
 const PRODUCTS_PER_PAGE = 12;
 
-// تهيئة الاتصال بقاعدة البيانات
 if (typeof window.supabase !== 'undefined') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("✅ تم الاتصال بـ Supabase بنجاح");
 }
 
 // ألوان احتياطية في حال لم تكن هناك صورة للمنتج
@@ -29,17 +26,16 @@ function getRandomColor() {
 }
 
 // --------------------------------------------------
-// 1. جلب وتحميل المنتجات (الرئيسية والفلترة)
+// 1. جلب وتحميل المنتجات (Infinite Scroll الفعال)
 // --------------------------------------------------
 async function loadInitialProducts() {
-    if (!supabaseClient) return;
     currentPage = 0;
     hasMore = true;
     products = [];
     
     const container = document.getElementById('all-products') || document.getElementById('latest-products');
     if (container) {
-        container.innerHTML = '<div class="loading-spinner">⏳ جاري تحميل المنتجات المحدثة...</div>';
+        container.innerHTML = '<div class="loading-spinner" style="text-align:center; padding:20px; font-size:1.2rem;">⏳ جاري تحميل المنتجات...</div>';
     }
     
     await fetchProductsPage();
@@ -59,7 +55,7 @@ async function fetchProductsPage() {
             .order('id', { ascending: false })
             .range(from, to);
             
-        // تطبيق الفلترة بالقسم إذا تم اختيار قسم محدد
+        // تطبيق الفلترة بالقسم بشكل صحيح ومباشر
         if (currentCategoryFilter !== null && !isNaN(currentCategoryFilter)) {
             query = query.eq('category_id', currentCategoryFilter);
         }
@@ -75,14 +71,17 @@ async function fetchProductsPage() {
         if (currentPage === 0) {
             products = data || [];
         } else {
-            products = products.concat(data || []);
+            // إزالة مكررات المنتجات إن وجدت
+            const existingIds = new Set(products.map(p => p.id));
+            const newProducts = (data || []).filter(p => !existingIds.has(p.id));
+            products = products.concat(newProducts);
         }
         
         currentPage++;
         renderProductsList();
         
     } catch (err) {
-        console.error("❌ خطأ أثناء جلب المنتجات:", err.message);
+        console.error("خطأ جلب المنتجات:", err.message);
     } finally {
         isLoading = false;
         const spinner = document.getElementById('loading-more-spinner');
@@ -91,17 +90,14 @@ async function fetchProductsPage() {
 }
 
 // --------------------------------------------------
-// 2. عرض المنتجات في الصفحة (مع الصور الحقيقية)
+// 2. عرض المنتجات (إصلاح مشكلة الصور الحقيقية)
 // --------------------------------------------------
 function renderProductsList() {
     const container = document.getElementById('all-products') || document.getElementById('latest-products');
     if (!container) return;
     
     if (products.length === 0) {
-        container.innerHTML = `
-            <div class="no-products-message" style="grid-column: 1/-1; text-align: center; padding: 40px; font-size: 1.4rem; color: #64748b;">
-                📦 عذراً، لا توجد منتجات في هذا القسم حالياً.
-            </div>`;
+        container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; font-size:1.2rem; color:#64748b;">📦 لا توجد منتجات في هذا القسم حالياً.</div>`;
         return;
     }
     
@@ -109,20 +105,21 @@ function renderProductsList() {
         const productImg = p.image && p.image.trim() !== "" ? p.image : "";
         const formattedPrice = Number(p.price).toLocaleString();
         
+        // تم استبدال الأيقونات بـ كود وسام الصورة الحقيقية img
         return `
             <div class="product-card" onclick="goToProductDetail(${p.id})">
-                <div class="product-image-container">
+                <div class="product-image-container" style="position:relative; width:100%; height:250px; background:#f8fafc; display:flex; align-items:center; justify-content:center; overflow:hidden;">
                     ${productImg ? 
-                        `<img src="${productImg}" alt="${p.name}" class="product-real-image" loading="lazy" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'product-fallback-img\\' style=\\'background:${getRandomColor()}\\'>🛍️</div>';">` : 
-                        `<div class="product-fallback-img" style="background:${getRandomColor()}">🛍️</div>`
+                        `<img src="${productImg}" alt="${p.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:3rem; background:${getRandomColor()}\\'>🛍️</div>';">` : 
+                        `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:3rem; background:${getRandomColor()}">🛍️</div>`
                     }
                 </div>
                 <div class="product-info">
-                    <h3 class="product-title">${p.name}</h3>
+                    <h3>${p.name}</h3>
                     <div class="product-meta">
-                        <span class="product-price">${formattedPrice} دينار</span>
+                        <span class="product-price" style="font-weight:bold; color:#0284c7;">${formattedPrice} دينار</span>
                     </div>
-                    <button class="add-to-cart-btn-fast" onclick="event.stopPropagation(); fastAddToCart(${p.id});">
+                    <button class="add-to-cart-btn-fast" style="width:100%; padding:10px; margin-top:10px; cursor:pointer;" onclick="event.stopPropagation(); fastAddToCart(${p.id});">
                         🛒 أضف للسلة سريعاً
                     </button>
                 </div>
@@ -132,20 +129,20 @@ function renderProductsList() {
     
     container.innerHTML = html;
     
-    // إلحاق عنصر مؤشر التحميل السفلي للـ Infinite Scroll
     if (hasMore && !document.getElementById('loading-more-spinner')) {
         const spinnerDiv = document.createElement('div');
         spinnerDiv.id = 'loading-more-spinner';
         spinnerDiv.className = 'loading-spinner';
         spinnerDiv.style.width = '100%';
         spinnerDiv.style.gridColumn = '1 / -1';
-        spinnerDiv.innerHTML = '⏳ جاري تحميل المزيد من المنتجات...';
+        spinnerDiv.style.textCenter = 'center';
+        spinnerDiv.innerHTML = '⏳ جاري تحميل المزيد...';
         container.appendChild(spinnerDiv);
     }
 }
 
 // --------------------------------------------------
-// 3. جلب وعرض الأقسام وإصلاح الفلترة
+// 3. الأقسام والفلترة الصحيحة
 // --------------------------------------------------
 async function loadCategories() {
     if (!supabaseClient) return;
@@ -154,7 +151,6 @@ async function loadCategories() {
         if (error) throw error;
         categories = data || [];
         
-        // 1. ملء قائمة الفلترة المنسدلة (إن وجدت في صفحة المنتجات)
         const filterSelect = document.getElementById('category-filter');
         if (filterSelect) {
             filterSelect.innerHTML = '<option value="all">📂 جميع الأقسام</option>';
@@ -162,46 +158,35 @@ async function loadCategories() {
                 filterSelect.innerHTML += `<option value="${cat.id}">${cat.icon || '🏷️'} ${cat.name}</option>`;
             });
             
-            // مستمع الحدث عند تغيير القسم من القائمة المنسدلة
             filterSelect.onchange = async function() {
                 const catId = this.value;
-                if (catId === 'all') {
-                    currentCategoryFilter = null;
-                } else {
-                    currentCategoryFilter = parseInt(catId);
-                }
+                currentCategoryFilter = (catId === 'all') ? null : parseInt(catId);
                 await loadInitialProducts();
             };
         }
         
-        // 2. ملء أقسام الصفحة الرئيسية الدائرية (إن وجدت)
         const homeCatsContainer = document.getElementById('categories-list-home');
         if (homeCatsContainer) {
             homeCatsContainer.innerHTML = `
                 <div class="category-item active" id="cat-item-all" onclick="filterByHomeCategory('all')">
-                    <div class="category-icon-wrapper">🌍</div>
                     <span>الكل</span>
                 </div>
             `;
             categories.forEach(cat => {
                 homeCatsContainer.innerHTML += `
                     <div class="category-item" id="cat-item-${cat.id}" onclick="filterByHomeCategory(${cat.id})">
-                        <div class="category-icon-wrapper">${cat.icon || '🏷️'}</div>
-                        <span>${cat.name}</span>
+                        <span>${cat.icon || '🏷️'} ${cat.name}</span>
                     </div>
                 `;
             });
         }
-        
     } catch (err) {
-        console.error("❌ خطأ في تحميل الأقسام:", err.message);
+        console.error("خطأ تحميل الأقسام:", err.message);
     }
 }
 
-// دالة الفلترة عند الضغط على الأقسام الدائرية في الصفحة الرئيسية
 window.filterByHomeCategory = async function(catId) {
     document.querySelectorAll('.category-item').forEach(el => el.classList.remove('active'));
-    
     if (catId === 'all') {
         currentCategoryFilter = null;
         document.getElementById('cat-item-all')?.classList.add('active');
@@ -223,26 +208,17 @@ async function loadProductDetail() {
     const productId = urlParams.get('id');
     
     if (!productId || !supabaseClient) {
-        detailContainer.innerHTML = '<div class="error-msg">⚠️ لم يتم العثور على المنتج المطلوبة.</div>';
+        detailContainer.innerHTML = '<div>⚠️ لم يتم العثور على المنتج.</div>';
         return;
     }
     
     try {
-        const { data: product, error } = await supabaseClient
-            .from('products')
-            .select('*')
-            .eq('id', productId)
-            .single();
-            
+        const { data: product, error } = await supabaseClient.from('products').select('*').eq('id', productId).single();
         if (error || !product) throw new Error("المنتج غير موجود");
         
-        // تجميع الصور: الصورة الرئيسية + الصور الإضافية
         let allImages = [];
-        if (product.image && product.image.trim() !== "") {
-            allImages.push(product.image);
-        }
+        if (product.image && product.image.trim() !== "") allImages.push(product.image);
         
-        // تحليل حقل الصور الإضافية extra_images (سواء كان مصفوفة أو نص مفصول بفواصل)
         if (product.extra_images) {
             if (Array.isArray(product.extra_images)) {
                 allImages = allImages.concat(product.extra_images.filter(img => img && img.trim() !== ""));
@@ -251,80 +227,51 @@ async function loadProductDetail() {
                 allImages = allImages.concat(extraArr);
             }
         }
-        
-        // إذا لم تكن هناك أي صورة، نضع صورة افتراضية
-        if (allImages.length === 0) {
-            allImages.push("");
-        }
+        if (allImages.length === 0) allImages.push("");
         
         const formattedPrice = Number(product.price).toLocaleString();
         
-        // بناء كود المعرض والThumbnails
         let galleryHtml = '';
         if (allImages[0] !== "") {
             galleryHtml = `
-                <div class="product-gallery-wrapper">
-                    <div class="main-image-view">
-                        <img id="main-detail-img" src="${allImages[0]}" alt="${product.name}">
+                <div class="gallery-container" style="display:flex; flex-direction:column; gap:15px;">
+                    <div class="main-img-box" style="width:100%; height:350px; background:#f8fafc; border-radius:16px; overflow:hidden;">
+                        <img id="main-detail-img" src="${allImages[0]}" style="width:100%; height:100%; object-fit:contain;">
                     </div>
-                    ${allImages.length > 1 ? `
-                        <div class="thumbnails-grid">
-                            ${allImages.map((img, index) => `
-                                <img src="${img}" class="thumb-img ${index === 0 ? 'active-thumb' : ''}" 
-                                     onclick="changeDetailImage('${img}', this)" alt="صورة ${index + 1}">
-                            `).join('')}
-                        </div>
-                    ` : ''}
+                    <div class="thumbs-box" style="display:flex; gap:10px; overflow-x:auto; padding:5px;">
+                        ${allImages.map(img => `
+                            <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:8px; cursor:pointer; border:2px solid #e2e8f0;" onclick="document.getElementById('main-detail-img').src='${img}'">
+                        `).join('')}
+                    </div>
                 </div>
             `;
         } else {
-            galleryHtml = `<div class="product-fallback-img-large" style="background:${getRandomColor()}">🛍️ لا توجد صورة متوفرة</div>`;
+            galleryHtml = `<div style="width:100%; height:300px; display:flex; align-items:center; justify-content:center; font-size:4rem; background:${getRandomColor()}">🛍️</div>`;
         }
         
         detailContainer.innerHTML = `
-            <div class="product-detail-container">
-                <div class="product-detail-image">
-                    ${galleryHtml}
-                </div>
+            <div class="product-detail-container" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:30px;">
+                <div class="product-detail-image">${galleryHtml}</div>
                 <div class="product-detail-info">
-                    <h1 class="detail-title">${product.name}</h1>
-                    <div class="detail-price-box">
-                        <span class="price-label">السعر الحالي:</span>
-                        <span class="detail-price-value">${formattedPrice} دينار</span>
-                    </div>
-                    <p class="detail-description">${product.description || 'لا يوجد وصف مفصل لهذا المنتج حالياً.'}</p>
-                    
-                    <div class="purchase-controls-box">
-                        <button class="btn-add-to-cart-large" onclick="fastAddToCart(${product.id})">
-                            🛒 أضف هذا المنتج إلى السلة الآن
-                        </button>
-                    </div>
+                    <h1>${product.name}</h1>
+                    <h2 style="color:#0284c7; margin:15px 0;">${formattedPrice} دينار</h2>
+                    <p style="margin-bottom:20px; white-space:pre-line;">${product.description || 'لا يوجد وصف لهذا المنتج.'}</p>
+                    <button class="btn-add-to-cart-large" style="padding:15px 30px; font-size:1.2rem; cursor:pointer; background:#22c55e; color:white; border:none; border-radius:12px;" onclick="fastAddToCart(${product.id})">
+                        🛒 أضف إلى السلة الآن
+                    </button>
                 </div>
             </div>
         `;
-        
     } catch (err) {
-        detailContainer.innerHTML = `<div class="error-msg">⚠️ خطأ أثناء تحميل تفاصيل المنتج: ${err.message}</div>`;
+        detailContainer.innerHTML = `<div>⚠️ خطأ: ${err.message}</div>`;
     }
 }
 
-// دالة تبديل الصورة الكبيرة عند النقر على الصور المصغرة بالمعرض
-window.changeDetailImage = function(imgUrl, thumbElement) {
-    const mainImg = document.getElementById('main-detail-img');
-    if (mainImg) {
-        mainImg.src = imgUrl;
-    }
-    document.querySelectorAll('.thumb-img').forEach(el => el.classList.remove('active-thumb'));
-    thumbElement.classList.add('active-thumb');
-};
-
 // --------------------------------------------------
-// 5. إدارة السلة المعتمدة والمستقرة
+// 5. السلة والواتساب المعتمد لديك
 // --------------------------------------------------
 window.fastAddToCart = function(id) {
-    // جلب بيانات المنتج من المصفوفة المحلية أو مباشرة من Supabase إن لم يكن متوفراً
     const localProd = products.find(p => p.id === id);
-    
     if (localProd) {
         addToCartAction(localProd);
     } else {
@@ -340,162 +287,81 @@ function addToCartAction(product) {
     if (existing) {
         existing.quantity += 1;
     } else {
-        cart.push({
-            id: product.id,
-            name: product.name,
-            price: Number(product.price),
-            image: product.image,
-            quantity: 1
-        });
+        cart.push({ id: product.id, name: product.name, price: Number(product.price), image: product.image, quantity: 1 });
     }
     saveCart();
     updateCartCount();
-    alert(`✅ تم إضافة "${product.name}" إلى السلة بنجاح`);
+    alert(`✅ تم إضافة "${product.name}" إلى السلة`);
 }
 
-function saveCart() {
-    localStorage.setItem('makani_cart', JSON.stringify(cart));
-}
-
+function saveCart() { localStorage.setItem('makani_cart', JSON.stringify(cart)); }
 function updateCartCount() {
-    const countBadge = document.getElementById('cart-count');
-    if (countBadge) {
-        const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
-        countBadge.innerText = totalQty;
-    }
+    const badge = document.getElementById('cart-count');
+    if (badge) badge.innerText = cart.reduce((sum, item) => sum + item.quantity, 0);
 }
 
-// --------------------------------------------------
-// 6. صفحة السلة وعرضها المحسن للشاشات والتابلت
-// --------------------------------------------------
 function renderCartPage() {
-    const cartTableBody = document.getElementById('cart-items');
-    const totalElement = document.getElementById('cart-total');
-    if (!cartTableBody || !totalElement) return;
+    const tbody = document.getElementById('cart-items');
+    const totalEl = document.getElementById('cart-total');
+    if (!tbody || !totalEl) return;
     
     if (cart.length === 0) {
-        cartTableBody.innerHTML = `<tr><td colspan="5" class="empty-cart-text">🛒 السلة فارغة تماماً حالياً، تصفح المتجر وأضف منتجات!</td></tr>`;
-        totalElement.innerText = "0 دينار";
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">السلة فارغة.</td></tr>';
+        totalEl.innerText = "0 دينار";
         return;
     }
     
     let total = 0;
-    cartTableBody.innerHTML = cart.map(item => {
+    tbody.innerHTML = cart.map(item => {
         const rowTotal = item.price * item.quantity;
         total += rowTotal;
-        const itemImg = item.image && item.image.trim() !== "" ? item.image : "";
-        
         return `
             <tr>
+                <td>${item.name}</td>
+                <td>${item.price.toLocaleString()} د.ع</td>
                 <td>
-                    <div class="cart-product-cell">
-                        ${itemImg ? `<img src="${itemImg}" class="cart-item-img" alt="${item.name}">` : `<div class="cart-item-fallback-img">🛍️</div>`}
-                        <span class="cart-item-name">${item.name}</span>
-                    </div>
+                    <button style="padding:5px 10px; font-weight:bold;" onclick="updateQty(${item.id}, 1)">+</button>
+                    <span style="margin:0 10px; font-weight:bold;">${item.quantity}</span>
+                    <button style="padding:5px 10px; font-weight:bold;" onclick="updateQty(${item.id}, -1)">-</button>
                 </td>
-                <td class="text-center">${item.price.toLocaleString()} د.ع</td>
-                <td>
-                    <div class="quantity-control-wrapper">
-                        <button class="qty-btn plus" onclick="updateQty(${item.id}, 1)">+</button>
-                        <span class="qty-number-display">${item.quantity}</span>
-                        <button class="qty-btn minus" onclick="updateQty(${item.id}, -1)">-</button>
-                    </div>
-                </td>
-                <td class="text-center">${rowTotal.toLocaleString()} د.ع</td>
-                <td class="text-center">
-                    <button class="cart-delete-btn-large" onclick="removeCartItem(${item.id})">🗑️ حذف</button>
-                </td>
+                <td>${rowTotal.toLocaleString()} د.ع</td>
+                <td><button style="color:red; background:none; border:none; cursor:pointer;" onclick="removeCartItem(${item.id})">🗑️ حذف</button></td>
             </tr>
         `;
     }).join('');
-    
-    totalElement.innerText = `${total.toLocaleString()} دينار`;
+    totalEl.innerText = `${total.toLocaleString()} دينار`;
 }
 
 window.updateQty = function(id, delta) {
     const item = cart.find(i => i.id === id);
     if (item) {
         item.quantity += delta;
-        if (item.quantity <= 0) {
-            cart = cart.filter(i => i.id !== id);
-        }
-        saveCart();
-        updateCartCount();
-        renderCartPage();
+        if (item.quantity <= 0) cart = cart.filter(i => i.id !== id);
+        saveCart(); updateCartCount(); renderCartPage();
     }
 };
 
 window.removeCartItem = function(id) {
-    if (confirm("هل تريد حذف هذا المنتج من السلة؟")) {
+    if (confirm("حذف المنتج؟")) {
         cart = cart.filter(i => i.id !== id);
-        saveCart();
-        updateCartCount();
-        renderCartPage();
+        saveCart(); updateCartCount(); renderCartPage();
     }
 };
 
-// إرسال الطلب للواتساب المستقر والثابت
-function handleOrderSubmit(e) {
-    e.preventDefault();
-    const name = document.getElementById('customer-name')?.value;
-    const phone = document.getElementById('customer-phone')?.value;
-    const address = document.getElementById('customer-address')?.value;
-    
-    if (!name || !phone || !address) return alert("الرجاء ملء جميع الحقول المطلوبة");
-    if (cart.length === 0) return alert("السلة فارغة");
-    
-    const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-    let msg = `🛍️ طلب جديد من مكاني ستور\n\n👤 الاسم: ${name}\n📱 الجوال: ${phone}\n📍 العنوان: ${address}\n━━━━━━━━━━━━\nالمنتجات:\n`;
-    
-    cart.forEach(i => {
-        msg += `• ${i.name} × ${i.quantity} = ${(i.price * i.quantity).toLocaleString()} دينار\n`;
-    });
-    
-    msg += `━━━━━━━━━━━━\n💰 الإجمالي: ${total.toLocaleString()} دينار\n💵 الدفع عند الاستلام`;
-    
-    window.open(`https://wa.me/964700000000?text=${encodeURIComponent(msg)}`, '_blank');
-    
-    cart = [];
-    saveCart();
-    updateCartCount();
-    alert("✅ تم فتح واتساب بنجاح لإرسال طلبك!");
-    setTimeout(() => window.location.href = "index.html", 1000);
-}
-
-// --------------------------------------------------
-// 7. تشغيل الأحداث و Infinite Scroll الذكي
-// --------------------------------------------------
+// تشغيل الأحداث والتمرير
 document.addEventListener('DOMContentLoaded', () => {
     updateCartCount();
     loadCategories();
     
-    // إذا كنا في صفحة قائمة المنتجات أو الرئيسية
     if (document.getElementById('all-products') || document.getElementById('latest-products')) {
         loadInitialProducts();
         
-        // ميزة كشف التمرير لأسفل (Infinite Scroll)
         window.addEventListener('scroll', () => {
             if ((window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 300) {
-                if (!isLoading && hasMore) {
-                    fetchProductsPage();
-                }
+                if (!isLoading && hasMore) fetchProductsPage();
             }
         });
     }
-    
-    // إذا كنا في صفحة تفاصيل منتج معين
-    if (document.getElementById('product-detail-content')) {
-        loadProductDetail();
-    }
-    
-    // إذا كنا في صفحة سلة التسوق
-    if (document.getElementById('cart-items')) {
-        renderCartPage();
-        document.getElementById('order-form')?.addEventListener('submit', handleOrderSubmit);
-    }
+    if (document.getElementById('product-detail-content')) loadProductDetail();
+    if (document.getElementById('cart-items')) renderCartPage();
 });
-
-window.goToProductDetail = function(id) {
-    window.location.href = `product-detail.html?id=${id}`;
-};
-            
