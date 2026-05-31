@@ -1,3 +1,47 @@
+// ==========================================
+// كود تشخيصي لمعرفة سبب المشكلة
+// ==========================================
+
+// نافذة تشخيص تظهر على الصفحة
+const debugBox = document.createElement('div');
+debugBox.style.cssText = 'position:fixed; bottom:10px; left:10px; right:10px; background:#1e293b; color:#4ade80; padding:10px; border-radius:15px; font-size:12px; font-family:monospace; z-index:99999; direction:ltr; text-align:left; max-height:200px; overflow:auto;';
+debugBox.innerHTML = '🔍 بدء التشخيص...<br>';
+document.body.appendChild(debugBox);
+
+function debugLog(msg) {
+    console.log(msg);
+    debugBox.innerHTML += msg + '<br>';
+    debugBox.scrollTop = debugBox.scrollHeight;
+}
+
+// اختبار مباشر لـ API
+async function testAPI() {
+    debugLog('📡 اختبار الاتصال بـ API...');
+    
+    try {
+        // اختبار الأقسام
+        debugLog('🔄 جلب الأقسام من: ' + API_BASE_URL + '/categories/');
+        const catResponse = await fetch(`${API_BASE_URL}/categories/`);
+        const catData = await catResponse.json();
+        debugLog('✅ استجابة الأقسام: ' + catResponse.status);
+        debugLog('📦 هيكل الأقسام: ' + JSON.stringify(catData).substring(0, 200));
+        
+        // اختبار المنتجات
+        debugLog('🔄 جلب المنتجات من: ' + API_BASE_URL + '/products/?token=' + API_TOKEN + '&limit=5');
+        const prodResponse = await fetch(`${API_BASE_URL}/products/?token=${API_TOKEN}&limit=5`);
+        const prodData = await prodResponse.json();
+        debugLog('✅ استجابة المنتجات: ' + prodResponse.status);
+        debugLog('📦 هيكل المنتجات: ' + JSON.stringify(prodData).substring(0, 300));
+        
+    } catch (error) {
+        debugLog('❌ خطأ: ' + error.message);
+    }
+}
+
+// تشغيل الاختبار بعد 2 ثانية
+setTimeout(() => {
+    testAPI();
+}, 2000);
 // ==================================================
 // script.js - المتجر يقرأ من API مباشرة (نسخة معدلة)
 // ==================================================
