@@ -6,24 +6,21 @@
     <title>نقل المنتجات إلى Supabase</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Tajawal', sans-serif; background: #0f172a; color: #fff; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 30px; border-radius: 20px; }
-        button { background: #0284c7; color: white; border: none; padding: 12px 24px; border-radius: 30px; cursor: pointer; font-size: 1rem; margin: 10px 0; }
-        button:disabled { background: #475569; cursor: not-allowed; }
-        .log { background: #0f172a; padding: 15px; border-radius: 10px; max-height: 500px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+        body { font-family: monospace; background: #0f172a; color: #4ade80; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 15px; }
+        button { background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; margin: 5px; }
+        .log { background: #0f172a; padding: 15px; border-radius: 10px; max-height: 500px; overflow-y: auto; font-size: 12px; }
         .success { color: #4ade80; }
         .error { color: #f87171; }
-        .warning { color: #fbbf24; }
         .info { color: #60a5fa; }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🔄 نقل المنتجات من API إلى Supabase</h1>
-    <p>⚠️ سيتم نقل جميع المنتجات والأقسام من API الدروب شيبينغ إلى قاعدة بيانات Supabase</p>
+    <h2>🔄 نقل المنتجات من API إلى Supabase</h2>
     <button id="startBtn" onclick="startTransfer()">🚀 بدء النقل</button>
-    <button id="clearBtn" onclick="clearData()" style="background:#e63946;">🗑️ مسح البيانات الحالية</button>
-    <div id="log" class="log">📋 جاهز... اضغط "بدء النقل"<br></div>
+    <button id="clearBtn" onclick="clearData()" style="background:#e63946;">🗑️ مسح البيانات</button>
+    <div id="log" class="log">📋 جاهز...</div>
 </div>
 
 <script>
@@ -33,59 +30,59 @@
     const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
     const SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTk1NzQzOSwiZXhwIjoyMDk1NTMzNDM5fQ.VT0B4YeoWiZIY-_DLTlaYcz3Dn2Rrmqc6N1VVD-w18E";
     
-    // إعدادات API
     const API_TOKEN = "t1JI0lA";
     const API_BASE_URL = "https://rolemall.com/api";
     
+    let supabase;
     let logDiv = document.getElementById('log');
     
-    function log(message, type = 'info') {
-        const prefix = type === 'error' ? '🔴' : (type === 'success' ? '🟢' : (type === 'warning' ? '🟡' : '🔵'));
-        logDiv.innerHTML += `<div class="${type}">${prefix} ${message}</div>`;
+    function log(msg, type = 'info') {
+        const color = type === 'error' ? '🔴' : (type === 'success' ? '🟢' : '🔵');
+        logDiv.innerHTML += `<div class="${type}">${color} ${msg}</div>`;
         logDiv.scrollTop = logDiv.scrollHeight;
-        console.log(message);
+        console.log(msg);
     }
     
-    // اختبار الاتصال بـ Supabase أولاً
-    async function testSupabase() {
-        log("🔍 اختبار الاتصال بـ Supabase...", 'info');
-        try {
-            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-            const { data, error } = await supabase.from('categories').select('count', { count: 'exact', head: true });
-            if (error) throw error;
-            log("✅ الاتصال بـ Supabase ناجح", 'success');
-            return supabase;
-        } catch (error) {
-            log(`❌ فشل الاتصال بـ Supabase: ${error.message}`, 'error');
-            return null;
-        }
+    // تهيئة Supabase
+    function initSupabase() {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        log("✅ تم الاتصال بـ Supabase", 'success');
     }
     
+    // ==========================================
+    // استخراج البيانات من الاستجابة
+    // ==========================================
     function extractData(data, type) {
+        // البيانات في المسار: data.data.{type}
         if (data && data.data && data.data[type] && Array.isArray(data.data[type])) {
+            log(`📦 وجدت ${data.data[type].length} ${type} في data.data.${type}`, 'success');
             return data.data[type];
         }
         if (data && data[type] && Array.isArray(data[type])) {
+            log(`📦 وجدت ${data[type].length} ${type} في data.${type}`, 'success');
             return data[type];
         }
+        if (Array.isArray(data)) {
+            log(`📦 وجدت ${data.length} ${type} كمصفوفة`, 'success');
+            return data;
+        }
+        log(`⚠️ لم أجد ${type} - المفاتيح: ${Object.keys(data).join(', ')}`, 'error');
         return [];
     }
     
     // ==========================================
     // جلب الأقسام من API
     // ==========================================
-    async function fetchCategoriesFromAPI() {
-        log("🔄 جلب الأقسام من API...", 'info');
+    async function fetchCategories() {
+        log("🔄 جلب الأقسام من API...");
         try {
             const response = await fetch(`${API_BASE_URL}/categories/`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
-            const extracted = extractData(data, 'categories');
-            log(`✅ تم جلب ${extracted.length} قسم من API`, 'success');
-            return extracted.map(cat => ({
-                id: cat._id || cat.id,
-                name: cat.name,
-                icon: '📁'
+            const categories = extractData(data, 'categories');
+            return categories.map(c => ({
+                id: c._id || c.id,
+                name: c.name,
+                icon: c.img ? '🖼️' : '📁'
             }));
         } catch (error) {
             log(`❌ فشل جلب الأقسام: ${error.message}`, 'error');
@@ -94,30 +91,25 @@
     }
     
     // ==========================================
-    // جلب المنتجات من API (صفحة واحدة للاختبار)
+    // جلب جميع المنتجات من API
     // ==========================================
-    async function fetchProductsPage(page, limit = 50) {
-        const url = `${API_BASE_URL}/products/?token=${API_TOKEN}&page=${page}&limit=${limit}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        return extractData(data, 'products');
-    }
-    
-    async function fetchAllProductsFromAPI() {
+    async function fetchAllProducts() {
         let allProducts = [];
         let page = 1;
         let hasMore = true;
         
-        log("🔄 جلب المنتجات من API (قد يستغرق وقتاً)...", 'info');
+        log("🔄 جلب المنتجات من API (قد يستغرق وقتاً)...");
         
         while (hasMore) {
             try {
-                const products = await fetchProductsPage(page, 100);
+                const url = `${API_BASE_URL}/products/?token=${API_TOKEN}&page=${page}&limit=100`;
+                const response = await fetch(url);
+                const data = await response.json();
+                const products = extractData(data, 'products');
                 
                 if (products.length > 0) {
                     allProducts = [...allProducts, ...products];
-                    log(`📦 الصفحة ${page}: تم جلب ${products.length} منتج (المجموع: ${allProducts.length})`, 'info');
+                    log(`📦 الصفحة ${page}: ${products.length} منتج (المجموع: ${allProducts.length})`);
                     page++;
                 } else {
                     hasMore = false;
@@ -136,18 +128,52 @@
     }
     
     // ==========================================
+    // إضافة المنتجات إلى Supabase
+    // ==========================================
+    async function insertProducts(products) {
+        log("🔄 إضافة المنتجات إلى Supabase...");
+        
+        let inserted = 0;
+        let failed = 0;
+        
+        for (let i = 0; i < products.length; i++) {
+            const p = products[i];
+            const productData = {
+                id: p._id || p.id,
+                name: p.name || 'منتج بدون اسم',
+                price: p.price || p.sale_price || 0,
+                image: p.img || p.image || p.main_image || null,
+                description: p.description || p.body || null,
+                category_id: p.category_id || null
+            };
+            
+            const { error } = await supabase
+                .from('products')
+                .upsert([productData], { onConflict: 'id' });
+            
+            if (error) {
+                log(`❌ فشل إضافة ${p.name}: ${error.message}`, 'error');
+                failed++;
+            } else {
+                inserted++;
+                if (inserted % 50 === 0) {
+                    log(`📦 تم إضافة ${inserted} منتج...`);
+                }
+            }
+        }
+        
+        log(`✅ تم إضافة ${inserted} منتج (فشل: ${failed})`, 'success');
+    }
+    
+    // ==========================================
     // إضافة الأقسام إلى Supabase
     // ==========================================
-    async function insertCategories(supabaseClient, categories) {
-        log("🔄 إضافة الأقسام إلى Supabase...", 'info');
-        
-        // حذف الأقسام القديمة
-        const { error: deleteError } = await supabaseClient.from('categories').delete().neq('id', 0);
-        if (deleteError) log(`⚠️ خطأ في حذف الأقسام القديمة: ${deleteError.message}`, 'warning');
+    async function insertCategories(categories) {
+        log("🔄 إضافة الأقسام إلى Supabase...");
         
         let inserted = 0;
         for (const cat of categories) {
-            const { error } = await supabaseClient
+            const { error } = await supabase
                 .from('categories')
                 .upsert([{
                     id: cat.id,
@@ -162,50 +188,7 @@
             }
         }
         
-        log(`✅ تم إضافة/تحديث ${inserted} قسم في Supabase`, 'success');
-    }
-    
-    // ==========================================
-    // إضافة المنتجات إلى Supabase
-    // ==========================================
-    async function insertProducts(supabaseClient, products) {
-        log("🔄 إضافة المنتجات إلى Supabase...", 'info');
-        
-        // حذف المنتجات القديمة
-        const { error: deleteError } = await supabaseClient.from('products').delete().neq('id', 0);
-        if (deleteError) log(`⚠️ خطأ في حذف المنتجات القديمة: ${deleteError.message}`, 'warning');
-        
-        let inserted = 0;
-        let failed = 0;
-        
-        for (let i = 0; i < products.length; i++) {
-            const p = products[i];
-            const productData = {
-                id: p._id,
-                name: p.name || 'منتج بدون اسم',
-                price: p.price || p.sale_price || 0,
-                image: p.img || p.image || p.main_image || 'https://placehold.co/400x400/0284c7/white?text=منتج',
-                description: p.description || p.body || 'لا يوجد وصف',
-                category_id: p.category_id || null,
-                stock: p.stock || 10
-            };
-            
-            const { error } = await supabaseClient
-                .from('products')
-                .upsert([productData], { onConflict: 'id' });
-            
-            if (error) {
-                log(`❌ فشل إضافة ${p.name}: ${error.message}`, 'error');
-                failed++;
-            } else {
-                inserted++;
-                if (inserted % 50 === 0) {
-                    log(`📦 تم إضافة ${inserted} منتج...`, 'info');
-                }
-            }
-        }
-        
-        log(`✅ تم إضافة ${inserted} منتج إلى Supabase (فشل: ${failed})`, 'success');
+        log(`✅ تم إضافة ${inserted} قسم`, 'success');
     }
     
     // ==========================================
@@ -215,29 +198,25 @@
         const btn = document.getElementById('startBtn');
         btn.disabled = true;
         btn.innerText = "⏳ جاري النقل...";
-        logDiv.innerHTML = "🔄 بدء عملية النقل...<br>";
+        logDiv.innerHTML = "🚀 بدء عملية النقل...<br>";
         
         try {
-            // 1. اختبار الاتصال بـ Supabase
-            const supabaseClient = await testSupabase();
-            if (!supabaseClient) throw new Error("لا يمكن الاتصال بـ Supabase");
+            initSupabase();
             
-            // 2. جلب الأقسام من API
-            const categories = await fetchCategoriesFromAPI();
+            // 1. جلب الأقسام وإضافتها
+            const categories = await fetchCategories();
             if (categories.length > 0) {
-                await insertCategories(supabaseClient, categories);
+                await insertCategories(categories);
             }
             
-            // 3. جلب المنتجات من API
-            const products = await fetchAllProductsFromAPI();
+            // 2. جلب المنتجات وإضافتها
+            const products = await fetchAllProducts();
             if (products.length > 0) {
-                await insertProducts(supabaseClient, products);
+                await insertProducts(products);
             }
             
             log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'success');
-            log("🎉 اكتمل النقل بنجاح! يمكنك الآن استخدام المتجر الأساسي.", 'success');
-            log(`📊 عدد المنتجات المنقولة: ${products.length}`, 'success');
-            log(`📊 عدد الأقسام المنقولة: ${categories.length}`, 'success');
+            log(`🎉 اكتمل النقل! ${products.length} منتج و ${categories.length} قسم`, 'success');
             
         } catch (error) {
             log(`❌ خطأ عام: ${error.message}`, 'error');
@@ -251,17 +230,13 @@
     // مسح البيانات
     // ==========================================
     async function clearData() {
-        if (confirm("⚠️ هل أنت متأكد من مسح جميع المنتجات والأقسام من Supabase؟")) {
-            log("🗑️ جاري مسح البيانات...", 'warning');
-            try {
-                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-                await supabase.from('products').delete().neq('id', 0);
-                await supabase.from('categories').delete().neq('id', 0);
-                log("✅ تم مسح جميع البيانات", 'success');
-            } catch (error) {
-                log(`❌ خطأ في المسح: ${error.message}`, 'error');
-            }
-        }
+        if (!confirm("⚠️ هل أنت متأكد من مسح جميع المنتجات والأقسام من Supabase؟")) return;
+        
+        initSupabase();
+        log("🗑️ جاري مسح البيانات...");
+        await supabase.from('products').delete().neq('id', 0);
+        await supabase.from('categories').delete().neq('id', 0);
+        log("✅ تم مسح جميع البيانات", 'success');
     }
 </script>
 </body>
