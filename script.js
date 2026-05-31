@@ -115,7 +115,7 @@ function renderProducts() {
     if (!container) return;
     
     if (products.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:40px;">✨ جاري تحميل المنتجات...</div>';
+        container.innerHTML = '<div class="loading">✨ جاري تحميل المنتجات...</div>';
         return;
     }
 
@@ -140,6 +140,11 @@ async function loadFeaturedProducts() {
     const container = document.getElementById('featured-products');
     if (!container) return;
     
+    if (featured.length === 0) {
+        container.innerHTML = '<div class="loading">✨ لا توجد منتجات</div>';
+        return;
+    }
+    
     container.innerHTML = featured.map(p => {
         const imageUrl = p.image || 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
         return `
@@ -158,7 +163,7 @@ function renderCategories() {
     if (!grid) return;
     
     if (!categories.length) {
-        grid.innerHTML = '<div style="text-align:center; padding:40px;">⏳ جاري تحميل الأقسام...</div>';
+        grid.innerHTML = '<div class="loading">⏳ جاري تحميل الأقسام...</div>';
         return;
     }
     
@@ -263,7 +268,7 @@ function getProductId() {
 }
 
 async function loadProductDetail() {
-    const container = document.getElementById('product-detail-content');
+    const container = document.getElementById('productDetail');
     if (!container) return;
     
     const id = getProductId();
@@ -286,7 +291,7 @@ async function loadProductDetail() {
         <div class="product-detail">
             <img src="${imageUrl}" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
             <div>
-                <small class="category-badge">${category ? category.name : 'منتج'}</small>
+                <div class="category-badge">${category ? category.name : 'منتج'}</div>
                 <h1>${product.name}</h1>
                 <div class="product-price">${product.price.toLocaleString()} دينار</div>
                 <div class="product-description">${product.description || 'لا يوجد وصف متاح'}</div>
@@ -296,7 +301,7 @@ async function loadProductDetail() {
                     <button onclick="changeDetailQty(1)">+</button>
                 </div>
                 <button class="add-btn" onclick="addToCartFromDetail(${product.id})">🛒 إضافة إلى السلة</button>
-                <a href="products.html" class="back-link">← العودة</a>
+                <a href="products.html" class="back-link">← العودة إلى المنتجات</a>
             </div>
         </div>
     `;
@@ -326,15 +331,16 @@ function sendOrder(e) {
     const name = document.getElementById('customer-name')?.value;
     const phone = document.getElementById('customer-phone')?.value;
     const address = document.getElementById('customer-address')?.value;
-    if (!name || !phone || !address) return alert("املأ الحقول");
+    if (!name || !phone || !address) return alert("املأ جميع الحقول");
     const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-    let msg = `🛍️ طلب جديد\n👤: ${name}\n📱: ${phone}\n📍: ${address}\n━━━━━━\n`;
-    cart.forEach(i => { msg += `${i.name} x${i.quantity} = ${(i.price * i.quantity).toLocaleString()} دينار\n`; });
-    msg += `━━━━━━\n💰 المجموع: ${total.toLocaleString()} دينار`;
+    let msg = `🛍️ طلب جديد من مكاني ستور\n\n👤 الاسم: ${name}\n📱 الجوال: ${phone}\n📍 العنوان: ${address}\n━━━━━━━━━━━━\nالمنتجات:\n`;
+    cart.forEach(i => { msg += `• ${i.name} × ${i.quantity} = ${(i.price * i.quantity).toLocaleString()} دينار\n`; });
+    msg += `━━━━━━━━━━━━\n💰 الإجمالي: ${total.toLocaleString()} دينار\n💵 الدفع عند الاستلام`;
     window.open(`https://wa.me/964700000000?text=${encodeURIComponent(msg)}`, '_blank');
-    cart = []; saveCart();
+    cart = [];
+    saveCart();
     alert("✅ تم فتح واتساب");
-    setTimeout(() => window.location.href = "index.html", 1000);
+    setTimeout(() => window.location.href = "index.html", 1500);
 }
 
 // ==========================================
@@ -344,8 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
     const orderForm = document.getElementById('order-form');
     if (orderForm) orderForm.addEventListener('submit', sendOrder);
-    if (document.getElementById('product-detail-content')) loadProductDetail();
-    if (document.getElementById('cart-items-list')) renderCartPage();
+    if (document.getElementById('productDetail')) loadProductDetail();
+    if (document.getElementById('cartItems')) renderCartPage();
     window.addEventListener('scroll', () => {
         if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 300) loadMore();
     });
