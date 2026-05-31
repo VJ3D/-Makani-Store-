@@ -1,5 +1,5 @@
 // ==================================================
-// script.js - المتجر يقرأ من API مباشرة (صور حقيقية)
+// script.js - المتجر يقرأ من API مباشرة (نسخة معدلة)
 // ==================================================
 
 const API_TOKEN = "t1JI0lA";
@@ -11,7 +11,7 @@ let cart = JSON.parse(localStorage.getItem('makani_cart')) || [];
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
-const PRODUCTS_PER_PAGE = 20;
+const PRODUCTS_PER_PAGE = 20;  // 20 منتج في كل مرة
 
 // ==========================================
 // جلب المنتجات من API
@@ -19,9 +19,11 @@ const PRODUCTS_PER_PAGE = 20;
 async function fetchProducts(page = 1, limit = PRODUCTS_PER_PAGE) {
     try {
         const url = `${API_BASE_URL}/products/?token=${API_TOKEN}&page=${page}&limit=${limit}`;
+        console.log("جلب المنتجات من:", url);
         const response = await fetch(url);
         const data = await response.json();
         
+        // استخراج المنتجات من الاستجابة
         let productsArray = [];
         if (data && data.data && data.data.products) {
             productsArray = data.data.products;
@@ -30,6 +32,8 @@ async function fetchProducts(page = 1, limit = PRODUCTS_PER_PAGE) {
         } else if (Array.isArray(data)) {
             productsArray = data;
         }
+        
+        console.log(`تم جلب ${productsArray.length} منتج من الصفحة ${page}`);
         
         return productsArray.map(p => ({
             id: p._id,
@@ -40,7 +44,7 @@ async function fetchProducts(page = 1, limit = PRODUCTS_PER_PAGE) {
             category_id: p.category_id
         }));
     } catch (error) {
-        console.error("خطأ:", error);
+        console.error("خطأ في جلب المنتجات:", error);
         return [];
     }
 }
@@ -50,17 +54,37 @@ async function fetchProducts(page = 1, limit = PRODUCTS_PER_PAGE) {
 // ==========================================
 async function fetchCategories() {
     try {
-        const response = await fetch(`${API_BASE_URL}/categories/`);
+        const url = `${API_BASE_URL}/categories/`;
+        console.log("جلب الأقسام من:", url);
+        const response = await fetch(url);
         const data = await response.json();
         
+        console.log("استجابة الأقسام:", data);
+        
         let categoriesArray = [];
-        if (data && data.data && data.data.categories) {
+        
+        // تجربة عدة أماكن ممكنة للبيانات
+        if (data && data.data && data.data.categories && Array.isArray(data.data.categories)) {
             categoriesArray = data.data.categories;
-        } else if (data && data.categories) {
+            console.log("وجدت الأقسام في data.data.categories");
+        } else if (data && data.categories && Array.isArray(data.categories)) {
             categoriesArray = data.categories;
+            console.log("وجدت الأقسام في data.categories");
         } else if (Array.isArray(data)) {
             categoriesArray = data;
+            console.log("وجدت الأقسام كمصفوفة مباشرة");
+        } else if (data && typeof data === 'object') {
+            // البحث عن أي مفتاح يحتوي على مصفوفة
+            for (let key in data) {
+                if (Array.isArray(data[key]) && data[key].length > 0 && data[key][0].name) {
+                    categoriesArray = data[key];
+                    console.log(`وجدت الأقسام في المفتاح: ${key}`);
+                    break;
+                }
+            }
         }
+        
+        console.log(`تم جلب ${categoriesArray.length} قسم`);
         
         return categoriesArray.map(c => ({
             id: c._id || c.id,
@@ -68,7 +92,7 @@ async function fetchCategories() {
             image: c.img || c.image
         }));
     } catch (error) {
-        console.error("خطأ:", error);
+        console.error("خطأ في جلب الأقسام:", error);
         return [];
     }
 }
@@ -77,11 +101,14 @@ async function fetchCategories() {
 // تحميل البيانات
 // ==========================================
 async function loadData() {
-    console.log("🚀 جلب المنتجات من API...");
+    console.log("🚀 بدء تحميل البيانات...");
     
+    // جلب الأقسام
     categories = await fetchCategories();
     renderCategories();
+    console.log(`تم تحميل ${categories.length} قسم`);
     
+    // جلب أول 20 منتج
     const newProducts = await fetchProducts(1, PRODUCTS_PER_PAGE);
     products = newProducts;
     currentPage = 1;
@@ -90,13 +117,18 @@ async function loadData() {
     renderProducts();
     loadFeaturedProducts();
     updateCartCount();
+    
+    console.log(`تم تحميل ${products.length} منتج أولي`);
 }
 
+// تحميل المزيد عند التمرير
 async function loadMore() {
     if (isLoading || !hasMore) return;
     isLoading = true;
     
     const nextPage = currentPage + 1;
+    console.log(`جلب المزيد: الصفحة ${nextPage}`);
+    
     const newProducts = await fetchProducts(nextPage, PRODUCTS_PER_PAGE);
     
     if (newProducts.length > 0) {
@@ -104,12 +136,15 @@ async function loadMore() {
         currentPage = nextPage;
         hasMore = newProducts.length === PRODUCTS_PER_PAGE;
         renderProducts();
+        console.log(`تم إضافة ${newProducts.length} منتج جديد، المجموع: ${products.length}`);
     } else {
         hasMore = false;
+        console.log("لا يوجد المزيد من المنتجات");
     }
     isLoading = false;
 }
 
+// عرض المنتجات في صفحة جميع المنتجات
 function renderProducts() {
     const container = document.getElementById('all-products');
     if (!container) return;
@@ -135,6 +170,7 @@ function renderProducts() {
     }).join('');
 }
 
+// عرض المنتجات المميزة (أول 4 منتجات)
 async function loadFeaturedProducts() {
     const featured = await fetchProducts(1, 4);
     const container = document.getElementById('featured-products');
@@ -158,6 +194,7 @@ async function loadFeaturedProducts() {
     }).join('');
 }
 
+// عرض الأقسام
 function renderCategories() {
     const grid = document.getElementById('categories-grid');
     if (!grid) return;
@@ -168,12 +205,13 @@ function renderCategories() {
     }
     
     grid.innerHTML = categories.map(c => `
-        <a href="products.html?cat=${c.id}" class="category-card">
-            <div class="category-icon">📁</div>
+        <a href="products.html?cat=${c.id}" class="category-card" style="text-decoration:none; display:block; background:white; border-radius:20px; padding:20px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <div style="font-size:2rem;">📁</div>
             <h3>${c.name}</h3>
         </a>
     `).join('');
     
+    // تحديث قائمة الفلتر في صفحة المنتجات
     const filter = document.getElementById('category-filter');
     if (filter) {
         filter.innerHTML = '<option value="all">جميع الأقسام</option>' + 
@@ -181,21 +219,31 @@ function renderCategories() {
         
         filter.onchange = async function() {
             const catId = this.value === 'all' ? null : this.value;
-            if (catId) {
+            if (catId && catId !== 'all') {
                 const filtered = await fetchProducts(1, 200);
-                products = filtered.filter(p => p.category_id == catId);
+                products = filtered.filter(p => p.category_id == parseInt(catId));
                 renderProducts();
+                // تحديث عنوان الصفحة
+                const categoryName = categories.find(c => c.id == parseInt(catId))?.name;
+                const titleEl = document.querySelector('.products-header h2');
+                if (titleEl && categoryName) titleEl.innerHTML = `📦 منتجات ${categoryName}`;
             } else {
+                // إعادة تعيين العنوان
+                const titleEl = document.querySelector('.products-header h2');
+                if (titleEl) titleEl.innerHTML = `📦 جميع المنتجات`;
                 await loadData();
             }
         };
     }
+    
+    console.log(`تم عرض ${categories.length} قسم في الصفحة`);
 }
 
 // ==========================================
 // دوال السلة
 // ==========================================
 function saveCart() { localStorage.setItem('makani_cart', JSON.stringify(cart)); updateCartCount(); }
+
 function updateCartCount() { 
     const count = cart.reduce((s, i) => s + i.quantity, 0);
     document.querySelectorAll('#cart-count').forEach(b => { if (b) b.innerText = count; }); 
@@ -344,15 +392,29 @@ function sendOrder(e) {
 }
 
 // ==========================================
+// مراقبة التمرير للتحميل التدريجي
+// ==========================================
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', () => {
+        const scrollPosition = window.scrollY + window.innerHeight;
+        const pageHeight = document.documentElement.scrollHeight;
+        
+        if (scrollPosition >= pageHeight - 300) {
+            loadMore();
+        }
+    });
+}
+
+// ==========================================
 // بدء التشغيل
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("🚀 بدء تشغيل المتجر...");
     loadData();
+    setupInfiniteScroll();
+    
     const orderForm = document.getElementById('order-form');
     if (orderForm) orderForm.addEventListener('submit', sendOrder);
     if (document.getElementById('productDetail')) loadProductDetail();
-    if (document.getElementById('cartItems')) renderCartPage();
-    window.addEventListener('scroll', () => {
-        if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 300) loadMore();
-    });
+    if (document.getElementById('cart-items-list')) renderCartPage();
 });
