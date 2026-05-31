@@ -1,193 +1,120 @@
 // ==================================================
-// script.js - المتجر يقرأ المنتجات من API مباشرة
+// script.js - متجر بسيط وسريع
 // ==================================================
 
-const API_TOKEN = "t1JI0lA";
-const API_BASE_URL = "https://rolemall.com/api";
+const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTc0MzksImV4cCI6MjA5NTUzMzQzOX0.4hahW-U_IOOBJFfwl2P0qdFl2gXp6QUVuanRis8XLt4";
 
+let supabase;
 let products = [];
 let categories = [];
 let cart = JSON.parse(localStorage.getItem('makani_cart')) || [];
-let currentPage = 1;
-let isLoading = false;
-let hasMore = true;
-const PRODUCTS_PER_PAGE = 20;
 
-// ==========================================
-// جلب المنتجات من API
-// ==========================================
-async function fetchProducts(page = 1, limit = PRODUCTS_PER_PAGE) {
-    try {
-        const url = `${API_BASE_URL}/products/?token=${API_TOKEN}&page=${page}&limit=${limit}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        // استخراج المنتجات من الاستجابة
-        let productsArray = [];
-        if (data && data.data && data.data.products) {
-            productsArray = data.data.products;
-        } else if (data && data.products) {
-            productsArray = data.products;
-        } else if (Array.isArray(data)) {
-            productsArray = data;
-        }
-        
-        return productsArray.map(p => ({
-            id: p._id,
-            name: p.name,
-            price: p.price || p.sale_price || 0,
-            image: p.img || p.image || p.main_image,
-            description: p.description || p.body || 'لا يوجد وصف',
-            category_id: p.category_id
-        }));
-    } catch (error) {
-        console.error("خطأ:", error);
-        return [];
-    }
-}
-
-// ==========================================
-// جلب الأقسام من API
-// ==========================================
-async function fetchCategories() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/categories/`);
-        const data = await response.json();
-        
-        let categoriesArray = [];
-        if (data && data.data && data.data.categories) {
-            categoriesArray = data.data.categories;
-        } else if (data && data.categories) {
-            categoriesArray = data.categories;
-        } else if (Array.isArray(data)) {
-            categoriesArray = data;
-        }
-        
-        return categoriesArray.map(c => ({
-            id: c._id || c.id,
-            name: c.name,
-            image: c.img || c.image
-        }));
-    } catch (error) {
-        console.error("خطأ:", error);
-        return [];
-    }
+// تهيئة Supabase
+if (typeof window.supabase !== 'undefined') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
 // ==========================================
 // تحميل البيانات
 // ==========================================
 async function loadData() {
-    console.log("🚀 جلب المنتجات من API...");
+    const { data: p } = await supabase.from('products').select('*').order('id');
+    const { data: c } = await supabase.from('categories').select('*').order('id');
+    products = p || [];
+    categories = c || [];
     
-    // جلب الأقسام
-    categories = await fetchCategories();
     renderCategories();
+    renderFeatured();
     
-    // جلب المنتجات
-    const newProducts = await fetchProducts(1, PRODUCTS_PER_PAGE);
-    products = newProducts;
-    currentPage = 1;
-    hasMore = newProducts.length === PRODUCTS_PER_PAGE;
-    
-    renderProducts();
-    await loadFeaturedProducts();
+    if (document.getElementById('all-products')) {
+        renderAllProducts();
+    }
+    if (document.getElementById('cart-items-list')) {
+        renderCart();
+    }
+    if (document.getElementById('product-detail-content')) {
+        loadProductDetail();
+    }
     updateCartCount();
 }
 
-async function loadMore() {
-    if (isLoading || !hasMore) return;
-    isLoading = true;
-    
-    const nextPage = currentPage + 1;
-    const newProducts = await fetchProducts(nextPage, PRODUCTS_PER_PAGE);
-    
-    if (newProducts.length > 0) {
-        products = [...products, ...newProducts];
-        currentPage = nextPage;
-        hasMore = newProducts.length === PRODUCTS_PER_PAGE;
-        renderProducts();
-    } else {
-        hasMore = false;
-    }
-    isLoading = false;
-}
-
-function renderProducts() {
-    const container = document.getElementById('all-products');
-    if (!container) return;
-    
-    if (products.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:40px;">✨ جاري تحميل المنتجات...</div>';
-        return;
-    }
-
-    container.innerHTML = products.map(p => {
-        const cat = categories.find(c => c.id == p.category_id);
-        const imageUrl = p.image || 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
-        
-        return `
-            <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer;" onclick="goToProductDetail(${p.id})">
-                <img src="${imageUrl}" style="width:100%; height:160px; object-fit:cover; border-radius:16px;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
-                <h3>${p.name}</h3>
-                <div class="price">${p.price.toLocaleString()} دينار</div>
-                <small>${cat ? cat.name : ''}</small><br>
-                <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(${p.id});">➕ أضف للسلة</button>
-            </div>
-        `;
-    }).join('');
-}
-
-async function loadFeaturedProducts() {
-    const featured = await fetchProducts(1, 4);
-    const container = document.getElementById('featured-products');
-    if (!container) return;
-    
-    container.innerHTML = featured.map(p => {
-        const imageUrl = p.image || 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
-        return `
-            <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer;" onclick="goToProductDetail(${p.id})">
-                <img src="${imageUrl}" style="width:100%; height:160px; object-fit:cover; border-radius:16px;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
-                <h3>${p.name}</h3>
-                <div class="price">${p.price.toLocaleString()} دينار</div>
-                <button class="add-to-cart" onclick="event.stopPropagation(); addToCart(${p.id});">➕ أضف</button>
-            </div>
-        `;
-    }).join('');
-}
-
+// عرض الأقسام
 function renderCategories() {
     const grid = document.getElementById('categories-grid');
     if (!grid) return;
     
-    if (!categories.length) {
-        grid.innerHTML = '<div style="text-align:center; padding:40px;">⏳ جاري تحميل الأقسام...</div>';
+    if (categories.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; padding:40px;">⏳ جاري التحميل...</div>';
         return;
     }
     
     grid.innerHTML = categories.map(c => `
-        <a href="products.html?cat=${c.id}" class="category-card">
-            <div class="category-icon">📁</div>
+        <a href="products.html?cat=${c.id}" class="category-card" style="text-decoration:none; display:block; background:white; border-radius:20px; padding:20px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <div style="font-size:2rem;">📁</div>
             <h3>${c.name}</h3>
         </a>
     `).join('');
+}
+
+// المنتجات المميزة
+async function renderFeatured() {
+    const container = document.getElementById('featured-products');
+    if (!container) return;
     
-    const filter = document.getElementById('category-filter');
-    if (filter) {
-        filter.innerHTML = '<option value="all">جميع الأقسام</option>' + 
-            categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        
-        filter.onchange = async function() {
-            const catId = this.value === 'all' ? null : this.value;
-            if (catId) {
-                const filtered = await fetchProducts(1, 200);
-                products = filtered.filter(p => p.category_id == catId);
-                renderProducts();
-            } else {
-                await loadData();
-            }
-        };
+    const featured = products.slice(0, 4);
+    if (featured.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:40px;">✨ لا توجد منتجات</div>';
+        return;
     }
+    
+    container.innerHTML = featured.map(p => {
+        const cat = categories.find(c => c.id == p.category_id);
+        return `
+            <div class="product-card" style="background:white; border-radius:20px; padding:15px; text-align:center; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.05);" onclick="goToProduct(${p.id})">
+                <div style="background:#f1f5f9; height:150px; display:flex; align-items:center; justify-content:center; border-radius:15px; margin-bottom:10px;">🖼️</div>
+                <h3>${p.name}</h3>
+                <div style="color:#0284c7; font-weight:bold;">${p.price.toLocaleString()} دينار</div>
+                <small>${cat ? cat.name : ''}</small><br>
+                <button onclick="event.stopPropagation(); addToCart(${p.id})" style="background:#f1f5f9; border:none; padding:8px; border-radius:25px; margin-top:10px; width:100%;">➕ أضف</button>
+            </div>
+        `;
+    }).join('');
+}
+
+// عرض جميع المنتجات
+function renderAllProducts() {
+    const container = document.getElementById('all-products');
+    if (!container) return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const catId = urlParams.get('cat');
+    
+    let filtered = [...products];
+    if (catId && catId !== 'all') {
+        filtered = filtered.filter(p => p.category_id == parseInt(catId));
+        const category = categories.find(c => c.id == parseInt(catId));
+        const title = document.querySelector('.products-header h2');
+        if (title && category) title.innerHTML = `📦 منتجات ${category.name}`;
+    }
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:40px;">✨ لا توجد منتجات</div>';
+        return;
+    }
+    
+    container.innerHTML = filtered.map(p => {
+        const cat = categories.find(c => c.id == p.category_id);
+        return `
+            <div class="product-card" style="background:white; border-radius:20px; padding:15px; text-align:center; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.05);" onclick="goToProduct(${p.id})">
+                <div style="background:#f1f5f9; height:150px; display:flex; align-items:center; justify-content:center; border-radius:15px; margin-bottom:10px;">🖼️</div>
+                <h3>${p.name}</h3>
+                <div style="color:#0284c7; font-weight:bold;">${p.price.toLocaleString()} دينار</div>
+                <small>${cat ? cat.name : ''}</small><br>
+                <button onclick="event.stopPropagation(); addToCart(${p.id})" style="background:#f1f5f9; border:none; padding:8px; border-radius:25px; margin-top:10px; width:100%;">➕ أضف</button>
+            </div>
+        `;
+    }).join('');
 }
 
 // ==========================================
@@ -199,18 +126,18 @@ function updateCartCount() {
     document.querySelectorAll('#cart-count').forEach(b => { if (b) b.innerText = count; }); 
 }
 
-window.addToCart = function(id) {
+window.addToCart = function(id, qty = 1) {
     const p = products.find(p => p.id == id);
     if (!p) return;
     const exist = cart.find(i => i.id == id);
-    if (exist) { exist.quantity++; } 
-    else { cart.push({ ...p, quantity: 1 }); }
+    if (exist) { exist.quantity += qty; } 
+    else { cart.push({ ...p, quantity: qty }); }
     saveCart(); 
     alert(`✅ تم إضافة ${p.name}`);
-    if (document.getElementById('cart-items-list')) renderCartPage();
+    if (document.getElementById('cart-items-list')) renderCart();
 };
 
-function renderCartPage() {
+function renderCart() {
     const container = document.getElementById('cart-items-list');
     if (!container) return;
     if (!cart.length) {
@@ -221,16 +148,18 @@ function renderCartPage() {
     let total = 0;
     container.innerHTML = cart.map(item => {
         total += item.price * item.quantity;
-        return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #eef2f6;">
-            <div><strong>${item.name}</strong><br><small>${item.price.toLocaleString()} دينار</small></div>
-            <div>
-                <button onclick="changeQty(${item.id}, -1)">-</button>
-                <span>${item.quantity}</span>
-                <button onclick="changeQty(${item.id}, 1)">+</button>
-                <button onclick="removeFromCart(${item.id})">🗑️</button>
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #eef2f6;">
+                <div><strong>${item.name}</strong><br><small>${item.price.toLocaleString()} دينار</small></div>
+                <div>
+                    <button onclick="changeQty(${item.id}, -1)">-</button>
+                    <span style="margin:0 10px;">${item.quantity}</span>
+                    <button onclick="changeQty(${item.id}, 1)">+</button>
+                    <button onclick="removeFromCart(${item.id})" style="margin-left:10px;">🗑️</button>
+                </div>
+                <div>${(item.price * item.quantity).toLocaleString()} دينار</div>
             </div>
-            <div>${(item.price * item.quantity).toLocaleString()} دينار</div>
-        </div>`;
+        `;
     }).join('');
     if (document.getElementById('cart-total')) document.getElementById('cart-total').innerText = total.toLocaleString() + ' دينار';
 }
@@ -242,55 +171,45 @@ window.changeQty = function(id, d) {
         if (n <= 0) cart = cart.filter(x => x.id != id);
         else i.quantity = n;
         saveCart();
-        renderCartPage();
+        renderCart();
     }
 };
-window.removeFromCart = (id) => { cart = cart.filter(i => i.id != id); saveCart(); renderCartPage(); };
+window.removeFromCart = (id) => { cart = cart.filter(i => i.id != id); saveCart(); renderCart(); };
 
 // ==========================================
 // صفحة تفاصيل المنتج
 // ==========================================
-function getCurrentProductId() {
-    const urlParams = new URLSearchParams(window.location.search);
-    return parseInt(urlParams.get('id'));
+function getProductId() {
+    return parseInt(new URLSearchParams(window.location.search).get('id'));
 }
 
 async function loadProductDetail() {
     const container = document.getElementById('product-detail-content');
     if (!container) return;
     
-    const productId = getCurrentProductId();
-    let product = products.find(p => p.id == productId);
+    const id = getProductId();
+    const product = products.find(p => p.id == id);
     
     if (!product) {
-        const allProducts = await fetchProducts(1, 500);
-        product = allProducts.find(p => p.id == productId);
-        if (product) products = allProducts;
-    }
-    
-    if (!product) {
-        container.innerHTML = '<div style="text-align:center; padding:40px;">❌ المنتج غير موجود</div>';
+        container.innerHTML = '<div style="text-align:center; padding:40px;">❌ منتج غير موجود</div>';
         return;
     }
     
     const category = categories.find(c => c.id == product.category_id);
-    const imageUrl = product.image || 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(product.name);
     
     container.innerHTML = `
         <div style="background:white; border-radius:30px; padding:30px; margin:40px 0;">
-            <div style="text-align:center;">
-                <img src="${imageUrl}" style="max-width:100%; border-radius:20px;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
-            </div>
-            <h1 style="margin:20px 0 10px;">${product.name}</h1>
-            <div style="color:#0284c7; font-size:2rem; font-weight:bold;">${product.price.toLocaleString()} دينار</div>
-            <div style="color:#475569; margin:20px 0;">${product.description}</div>
+            <div style="background:#f1f5f9; height:250px; display:flex; align-items:center; justify-content:center; border-radius:20px; margin-bottom:20px;">🖼️</div>
+            <h1>${product.name}</h1>
+            <div style="color:#0284c7; font-size:2rem; font-weight:bold; margin:15px 0;">${product.price.toLocaleString()} دينار</div>
+            <div style="color:#475569; margin:20px 0;">${product.description || 'لا يوجد وصف'}</div>
             <div style="display:flex; align-items:center; gap:15px; margin:20px 0;">
                 <button onclick="changeDetailQty(-1)" style="width:45px; height:45px; border-radius:50%; background:#f1f5f9; border:none;">-</button>
                 <span id="detailQty" style="font-size:1.3rem;">1</span>
                 <button onclick="changeDetailQty(1)" style="width:45px; height:45px; border-radius:50%; background:#f1f5f9; border:none;">+</button>
             </div>
-            <button onclick="addToCartFromDetail(${product.id})" style="background:#0284c7; color:white; border:none; padding:15px 30px; border-radius:50px; width:100%; font-size:1.1rem;">🛒 إضافة إلى السلة</button>
-            <a href="products.html" style="display:inline-block; margin-top:20px;">← العودة</a>
+            <button onclick="addToCartFromDetail(${product.id})" style="background:#0284c7; color:white; border:none; padding:15px; border-radius:50px; width:100%; font-size:1.1rem;">🛒 إضافة إلى السلة</button>
+            <a href="products.html" style="display:block; margin-top:20px; text-align:center;">← العودة</a>
         </div>
     `;
 }
@@ -310,7 +229,8 @@ function addToCartFromDetail(id) {
     document.getElementById('detailQty').innerText = detailQty;
 }
 
-function sendOrderToWhatsApp(e) {
+// إرسال الطلب
+function sendOrder(e) {
     e.preventDefault();
     if (!cart.length) return alert("السلة فارغة");
     const name = document.getElementById('customer-name')?.value;
@@ -327,24 +247,16 @@ function sendOrderToWhatsApp(e) {
     setTimeout(() => window.location.href = "index.html", 1000);
 }
 
-window.goToProductDetail = function(id) {
+window.goToProduct = function(id) {
     window.location.href = `product-detail.html?id=${id}`;
 };
 
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
-    if (document.getElementById('order-form')) {
-        document.getElementById('order-form').addEventListener('submit', sendOrderToWhatsApp);
+    const orderForm = document.getElementById('order-form');
+    if (orderForm) orderForm.addEventListener('submit', sendOrder);
+    const filter = document.getElementById('category-filter');
+    if (filter) {
+        filter.addEventListener('change', () => renderAllProducts());
     }
-    if (document.getElementById('product-detail-content')) {
-        loadProductDetail();
-    }
-    if (document.getElementById('cart-items-list')) {
-        renderCartPage();
-    }
-    window.addEventListener('scroll', () => {
-        if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 300) {
-            loadMore();
-        }
-    });
 });
