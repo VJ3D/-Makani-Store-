@@ -1,5 +1,5 @@
 // ==================================================
-// script.js - المتجر الرئيسي مع عرض الصور الحقيقية
+// script.js - المتجر الرئيسي مع الصور الحقيقية
 // ==================================================
 
 const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
@@ -101,8 +101,8 @@ function renderProducts() {
 
     container.innerHTML = products.map(p => {
         const cat = categories.find(c => c.id == p.category_id);
-        // عرض الصورة الحقيقية إذا وجدت
-        const imageUrl = p.image && p.image.startsWith('http') ? p.image : 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
+        // الصورة الحقيقية من قاعدة البيانات
+        const imageUrl = p.image || 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
         
         return `
             <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer; transition:transform 0.2s;" onclick="goToProductDetail(${p.id})">
@@ -182,7 +182,7 @@ async function loadFeaturedProducts() {
     }
     
     container.innerHTML = data.map(p => {
-        const imageUrl = p.image && p.image.startsWith('http') ? p.image : 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
+        const imageUrl = p.image || 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
         return `
             <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer;" onclick="goToProductDetail(${p.id})">
                 <img src="${imageUrl}" style="width:100%; height:160px; object-fit:cover; border-radius:16px;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
@@ -349,7 +349,7 @@ async function loadProductDetail() {
     }
     
     const category = categories.find(c => c.id == product.category_id);
-    const imageUrl = product.image && product.image.startsWith('http') ? product.image : 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(product.name);
+    const imageUrl = product.image || 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(product.name);
     
     container.innerHTML = `
         <div style="background:white; border-radius:32px; padding:30px; margin:40px 0; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
