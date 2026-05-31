@@ -1,5 +1,5 @@
 // ==================================================
-// script.js - تحميل تدريجي سريع (12 منتجاً ثم المزيد)
+// script.js - المتجر الرئيسي مع عرض الصور الحقيقية
 // ==================================================
 
 const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
@@ -20,15 +20,8 @@ if (typeof window.supabase !== 'undefined') {
     console.log("✅ Supabase connected");
 }
 
-// ألوان جميلة للصور الافتراضية
-const colors = ['#0284c7', '#0891b2', '#059669', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#4f46e5'];
-
-function getRandomColor() {
-    return colors[Math.floor(Math.random() * colors.length)];
-}
-
 // ==========================================
-// جلب المنتجات (مع ترقيم الصفحات)
+// جلب المنتجات
 // ==========================================
 async function fetchProductsPage(page, limit = PRODUCTS_PER_PAGE) {
     try {
@@ -54,9 +47,6 @@ async function fetchProductsPage(page, limit = PRODUCTS_PER_PAGE) {
     }
 }
 
-// ==========================================
-// تحميل المنتجات الأولية
-// ==========================================
 async function loadInitialProducts() {
     if (isLoading) return;
     isLoading = true;
@@ -76,9 +66,6 @@ async function loadInitialProducts() {
     }
 }
 
-// ==========================================
-// تحميل المزيد
-// ==========================================
 async function loadMoreProducts() {
     if (isLoading || !hasMore) return;
     isLoading = true;
@@ -103,9 +90,6 @@ async function loadMoreProducts() {
     }
 }
 
-// ==========================================
-// عرض المنتجات (بألوان جميلة)
-// ==========================================
 function renderProducts() {
     const container = document.getElementById('all-products');
     if (!container) return;
@@ -117,14 +101,13 @@ function renderProducts() {
 
     container.innerHTML = products.map(p => {
         const cat = categories.find(c => c.id == p.category_id);
-        const color = getRandomColor();
+        // عرض الصورة الحقيقية إذا وجدت
+        const imageUrl = p.image && p.image.startsWith('http') ? p.image : 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
         
         return `
             <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer; transition:transform 0.2s;" onclick="goToProductDetail(${p.id})">
-                <div style="background:${color}; height:150px; display:flex; align-items:center; justify-content:center; border-radius:16px; margin-bottom:15px; color:white; font-size:3rem;">
-                    🛍️
-                </div>
-                <h3 style="margin:10px 0 5px; font-size:1rem;">${p.name}</h3>
+                <img src="${imageUrl}" style="width:100%; height:160px; object-fit:cover; border-radius:16px; background:#f1f5f9;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
+                <h3 style="margin:12px 0 5px; font-size:1rem;">${p.name}</h3>
                 <div style="color:#0284c7; font-weight:bold; font-size:1.2rem;">${p.price.toLocaleString()} دينار</div>
                 <small>${cat ? cat.name : ''}</small><br>
                 <button onclick="event.stopPropagation(); addToCart(${p.id})" style="background:#f1f5f9; border:none; padding:8px 16px; border-radius:30px; cursor:pointer; width:100%; margin-top:10px;">➕ أضف للسلة</button>
@@ -184,9 +167,6 @@ async function loadCategories() {
     }
 }
 
-// ==========================================
-// المنتجات المميزة (أول 4)
-// ==========================================
 async function loadFeaturedProducts() {
     const { data } = await supabaseClient
         .from('products')
@@ -202,13 +182,11 @@ async function loadFeaturedProducts() {
     }
     
     container.innerHTML = data.map(p => {
-        const color = getRandomColor();
+        const imageUrl = p.image && p.image.startsWith('http') ? p.image : 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
         return `
             <div class="product-card" style="background:white; border-radius:24px; padding:20px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.05); cursor:pointer;" onclick="goToProductDetail(${p.id})">
-                <div style="background:${color}; height:150px; display:flex; align-items:center; justify-content:center; border-radius:16px; margin-bottom:15px; color:white; font-size:3rem;">
-                    🛍️
-                </div>
-                <h3 style="margin:10px 0 5px;">${p.name}</h3>
+                <img src="${imageUrl}" style="width:100%; height:160px; object-fit:cover; border-radius:16px;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
+                <h3 style="margin:12px 0 5px;">${p.name}</h3>
                 <div style="color:#0284c7; font-weight:bold;">${p.price.toLocaleString()} دينار</div>
                 <button onclick="event.stopPropagation(); addToCart(${p.id})" style="background:#f1f5f9; border:none; padding:8px 16px; border-radius:30px; cursor:pointer; width:100%; margin-top:10px;">➕ أضف</button>
             </div>
@@ -371,14 +349,17 @@ async function loadProductDetail() {
     }
     
     const category = categories.find(c => c.id == product.category_id);
-    const color = getRandomColor();
+    const imageUrl = product.image && product.image.startsWith('http') ? product.image : 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(product.name);
     
     container.innerHTML = `
         <div style="background:white; border-radius:32px; padding:30px; margin:40px 0; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
             <div style="text-align:center;">
-                <div style="background:${color}; height:300px; display:flex; align-items:center; justify-content:center; border-radius:24px; color:white; font-size:5rem;">
-                    🛍️
-                </div>
+                <img src="${imageUrl}" style="max-width:100%; border-radius:24px;" onerror="this.src='https://placehold.co/400x400/0284c7/white?text=صورة'">
+                ${product.extra_images && product.extra_images.length > 0 ? `
+                    <div style="display:flex; gap:10px; margin-top:15px; justify-content:center;">
+                        ${product.extra_images.slice(0,3).map(img => `<img src="${img}" style="width:80px; height:80px; object-fit:cover; border-radius:12px;" onerror="this.src='https://placehold.co/80x80/0284c7/white?text=صورة'">`).join('')}
+                    </div>
+                ` : ''}
             </div>
             <div>
                 <span style="display:inline-block; background:#e0f2fe; padding:6px 16px; border-radius:30px;">${category ? category.name : 'منتج'}</span>
@@ -458,7 +439,7 @@ window.goToProductDetail = function(id) {
 // بدء التشغيل
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 بدء التشغيل - تحميل تدريجي");
+    console.log("🚀 بدء التشغيل");
     loadData();
     if (document.getElementById('order-form')) {
         document.getElementById('order-form').addEventListener('submit', sendOrderToWhatsApp);
