@@ -1,49 +1,5 @@
-// ==========================================
-// كود تشخيصي لمعرفة سبب المشكلة
-// ==========================================
-
-// نافذة تشخيص تظهر على الصفحة
-const debugBox = document.createElement('div');
-debugBox.style.cssText = 'position:fixed; bottom:10px; left:10px; right:10px; background:#1e293b; color:#4ade80; padding:10px; border-radius:15px; font-size:12px; font-family:monospace; z-index:99999; direction:ltr; text-align:left; max-height:200px; overflow:auto;';
-debugBox.innerHTML = '🔍 بدء التشخيص...<br>';
-document.body.appendChild(debugBox);
-
-function debugLog(msg) {
-    console.log(msg);
-    debugBox.innerHTML += msg + '<br>';
-    debugBox.scrollTop = debugBox.scrollHeight;
-}
-
-// اختبار مباشر لـ API
-async function testAPI() {
-    debugLog('📡 اختبار الاتصال بـ API...');
-    
-    try {
-        // اختبار الأقسام
-        debugLog('🔄 جلب الأقسام من: ' + API_BASE_URL + '/categories/');
-        const catResponse = await fetch(`${API_BASE_URL}/categories/`);
-        const catData = await catResponse.json();
-        debugLog('✅ استجابة الأقسام: ' + catResponse.status);
-        debugLog('📦 هيكل الأقسام: ' + JSON.stringify(catData).substring(0, 200));
-        
-        // اختبار المنتجات
-        debugLog('🔄 جلب المنتجات من: ' + API_BASE_URL + '/products/?token=' + API_TOKEN + '&limit=5');
-        const prodResponse = await fetch(`${API_BASE_URL}/products/?token=${API_TOKEN}&limit=5`);
-        const prodData = await prodResponse.json();
-        debugLog('✅ استجابة المنتجات: ' + prodResponse.status);
-        debugLog('📦 هيكل المنتجات: ' + JSON.stringify(prodData).substring(0, 300));
-        
-    } catch (error) {
-        debugLog('❌ خطأ: ' + error.message);
-    }
-}
-
-// تشغيل الاختبار بعد 2 ثانية
-setTimeout(() => {
-    testAPI();
-}, 2000);
 // ==================================================
-// script.js - المتجر يقرأ من API مباشرة (نسخة معدلة)
+// script.js - المتجر يقرأ من API مباشرة (نسخة مصححة)
 // ==================================================
 
 const API_TOKEN = "t1JI0lA";
@@ -55,7 +11,58 @@ let cart = JSON.parse(localStorage.getItem('makani_cart')) || [];
 let currentPage = 1;
 let isLoading = false;
 let hasMore = true;
-const PRODUCTS_PER_PAGE = 20;  // 20 منتج في كل مرة
+const PRODUCTS_PER_PAGE = 20;
+
+// نافذة تشخيص
+const debugBox = document.createElement('div');
+debugBox.style.cssText = 'position:fixed; bottom:10px; left:10px; right:10px; background:#1e293b; color:#4ade80; padding:8px; border-radius:15px; font-size:11px; font-family:monospace; z-index:99999; direction:ltr; text-align:left; max-height:150px; overflow:auto;';
+debugBox.innerHTML = '🔍 جاري التشغيل...<br>';
+document.body.appendChild(debugBox);
+
+function debugLog(msg) {
+    console.log(msg);
+    debugBox.innerHTML += msg + '<br>';
+    debugBox.scrollTop = debugBox.scrollHeight;
+}
+
+// ==========================================
+// استخراج البيانات من الاستجابة
+// ==========================================
+function extractCategoriesFromResponse(data) {
+    // البيانات في المسار: data.data.categories
+    if (data && data.data && data.data.categories && Array.isArray(data.data.categories)) {
+        debugLog(`✅ وجدت ${data.data.categories.length} قسم في data.data.categories`);
+        return data.data.categories;
+    }
+    if (data && data.categories && Array.isArray(data.categories)) {
+        debugLog(`✅ وجدت ${data.categories.length} قسم في data.categories`);
+        return data.categories;
+    }
+    if (Array.isArray(data)) {
+        debugLog(`✅ وجدت ${data.length} قسم كمصفوفة`);
+        return data;
+    }
+    debugLog(`⚠️ لم أجد الأقسام - المفاتيح: ${Object.keys(data).join(', ')}`);
+    return [];
+}
+
+function extractProductsFromResponse(data) {
+    // البيانات في المسار: data.data.products
+    if (data && data.data && data.data.products && Array.isArray(data.data.products)) {
+        debugLog(`✅ وجدت ${data.data.products.length} منتج في data.data.products`);
+        return data.data.products;
+    }
+    if (data && data.products && Array.isArray(data.products)) {
+        debugLog(`✅ وجدت ${data.products.length} منتج في data.products`);
+        return data.products;
+    }
+    if (Array.isArray(data)) {
+        debugLog(`✅ وجدت ${data.length} منتج كمصفوفة`);
+        return data;
+    }
+    debugLog(`⚠️ لم أجد المنتجات - المفاتيح: ${Object.keys(data).join(', ')}`);
+    return [];
+}
 
 // ==========================================
 // جلب المنتجات من API
@@ -63,21 +70,11 @@ const PRODUCTS_PER_PAGE = 20;  // 20 منتج في كل مرة
 async function fetchProducts(page = 1, limit = PRODUCTS_PER_PAGE) {
     try {
         const url = `${API_BASE_URL}/products/?token=${API_TOKEN}&page=${page}&limit=${limit}`;
-        console.log("جلب المنتجات من:", url);
+        debugLog(`📡 جلب المنتجات: صفحة ${page}`);
         const response = await fetch(url);
         const data = await response.json();
         
-        // استخراج المنتجات من الاستجابة
-        let productsArray = [];
-        if (data && data.data && data.data.products) {
-            productsArray = data.data.products;
-        } else if (data && data.products) {
-            productsArray = data.products;
-        } else if (Array.isArray(data)) {
-            productsArray = data;
-        }
-        
-        console.log(`تم جلب ${productsArray.length} منتج من الصفحة ${page}`);
+        const productsArray = extractProductsFromResponse(data);
         
         return productsArray.map(p => ({
             id: p._id,
@@ -88,7 +85,7 @@ async function fetchProducts(page = 1, limit = PRODUCTS_PER_PAGE) {
             category_id: p.category_id
         }));
     } catch (error) {
-        console.error("خطأ في جلب المنتجات:", error);
+        debugLog(`❌ خطأ في جلب المنتجات: ${error.message}`);
         return [];
     }
 }
@@ -99,36 +96,11 @@ async function fetchProducts(page = 1, limit = PRODUCTS_PER_PAGE) {
 async function fetchCategories() {
     try {
         const url = `${API_BASE_URL}/categories/`;
-        console.log("جلب الأقسام من:", url);
+        debugLog(`📡 جلب الأقسام...`);
         const response = await fetch(url);
         const data = await response.json();
         
-        console.log("استجابة الأقسام:", data);
-        
-        let categoriesArray = [];
-        
-        // تجربة عدة أماكن ممكنة للبيانات
-        if (data && data.data && data.data.categories && Array.isArray(data.data.categories)) {
-            categoriesArray = data.data.categories;
-            console.log("وجدت الأقسام في data.data.categories");
-        } else if (data && data.categories && Array.isArray(data.categories)) {
-            categoriesArray = data.categories;
-            console.log("وجدت الأقسام في data.categories");
-        } else if (Array.isArray(data)) {
-            categoriesArray = data;
-            console.log("وجدت الأقسام كمصفوفة مباشرة");
-        } else if (data && typeof data === 'object') {
-            // البحث عن أي مفتاح يحتوي على مصفوفة
-            for (let key in data) {
-                if (Array.isArray(data[key]) && data[key].length > 0 && data[key][0].name) {
-                    categoriesArray = data[key];
-                    console.log(`وجدت الأقسام في المفتاح: ${key}`);
-                    break;
-                }
-            }
-        }
-        
-        console.log(`تم جلب ${categoriesArray.length} قسم`);
+        const categoriesArray = extractCategoriesFromResponse(data);
         
         return categoriesArray.map(c => ({
             id: c._id || c.id,
@@ -136,7 +108,7 @@ async function fetchCategories() {
             image: c.img || c.image
         }));
     } catch (error) {
-        console.error("خطأ في جلب الأقسام:", error);
+        debugLog(`❌ خطأ في جلب الأقسام: ${error.message}`);
         return [];
     }
 }
@@ -145,12 +117,12 @@ async function fetchCategories() {
 // تحميل البيانات
 // ==========================================
 async function loadData() {
-    console.log("🚀 بدء تحميل البيانات...");
+    debugLog("🚀 بدء تحميل البيانات...");
     
     // جلب الأقسام
     categories = await fetchCategories();
     renderCategories();
-    console.log(`تم تحميل ${categories.length} قسم`);
+    debugLog(`📊 تم تحميل ${categories.length} قسم`);
     
     // جلب أول 20 منتج
     const newProducts = await fetchProducts(1, PRODUCTS_PER_PAGE);
@@ -162,7 +134,7 @@ async function loadData() {
     loadFeaturedProducts();
     updateCartCount();
     
-    console.log(`تم تحميل ${products.length} منتج أولي`);
+    debugLog(`📊 تم تحميل ${products.length} منتج`);
 }
 
 // تحميل المزيد عند التمرير
@@ -171,7 +143,7 @@ async function loadMore() {
     isLoading = true;
     
     const nextPage = currentPage + 1;
-    console.log(`جلب المزيد: الصفحة ${nextPage}`);
+    debugLog(`📡 جلب المزيد: صفحة ${nextPage}`);
     
     const newProducts = await fetchProducts(nextPage, PRODUCTS_PER_PAGE);
     
@@ -180,15 +152,15 @@ async function loadMore() {
         currentPage = nextPage;
         hasMore = newProducts.length === PRODUCTS_PER_PAGE;
         renderProducts();
-        console.log(`تم إضافة ${newProducts.length} منتج جديد، المجموع: ${products.length}`);
+        debugLog(`➕ تم إضافة ${newProducts.length} منتج، المجموع: ${products.length}`);
     } else {
         hasMore = false;
-        console.log("لا يوجد المزيد من المنتجات");
+        debugLog(`🏁 لا يوجد المزيد من المنتجات`);
     }
     isLoading = false;
 }
 
-// عرض المنتجات في صفحة جميع المنتجات
+// عرض المنتجات
 function renderProducts() {
     const container = document.getElementById('all-products');
     if (!container) return;
@@ -214,7 +186,7 @@ function renderProducts() {
     }).join('');
 }
 
-// عرض المنتجات المميزة (أول 4 منتجات)
+// المنتجات المميزة
 async function loadFeaturedProducts() {
     const featured = await fetchProducts(1, 4);
     const container = document.getElementById('featured-products');
@@ -255,7 +227,6 @@ function renderCategories() {
         </a>
     `).join('');
     
-    // تحديث قائمة الفلتر في صفحة المنتجات
     const filter = document.getElementById('category-filter');
     if (filter) {
         filter.innerHTML = '<option value="all">جميع الأقسام</option>' + 
@@ -267,12 +238,10 @@ function renderCategories() {
                 const filtered = await fetchProducts(1, 200);
                 products = filtered.filter(p => p.category_id == parseInt(catId));
                 renderProducts();
-                // تحديث عنوان الصفحة
                 const categoryName = categories.find(c => c.id == parseInt(catId))?.name;
                 const titleEl = document.querySelector('.products-header h2');
                 if (titleEl && categoryName) titleEl.innerHTML = `📦 منتجات ${categoryName}`;
             } else {
-                // إعادة تعيين العنوان
                 const titleEl = document.querySelector('.products-header h2');
                 if (titleEl) titleEl.innerHTML = `📦 جميع المنتجات`;
                 await loadData();
@@ -280,7 +249,7 @@ function renderCategories() {
         };
     }
     
-    console.log(`تم عرض ${categories.length} قسم في الصفحة`);
+    debugLog(`🖼️ تم عرض ${categories.length} قسم`);
 }
 
 // ==========================================
@@ -436,7 +405,7 @@ function sendOrder(e) {
 }
 
 // ==========================================
-// مراقبة التمرير للتحميل التدريجي
+// مراقبة التمرير
 // ==========================================
 function setupInfiniteScroll() {
     window.addEventListener('scroll', () => {
@@ -453,7 +422,7 @@ function setupInfiniteScroll() {
 // بدء التشغيل
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 بدء تشغيل المتجر...");
+    debugLog("🚀 بدء تشغيل المتجر...");
     loadData();
     setupInfiniteScroll();
     
