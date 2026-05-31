@@ -2,70 +2,65 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>المنتجات - مكاني ستور</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Tajawal', sans-serif; background: #f5f7fa; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { background: white; padding: 15px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
+        header .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .logo h1 { color: #0284c7; font-size: 1.5rem; }
+        nav a { text-decoration: none; color: #334155; margin: 0 10px; }
+        .cart-link { position: relative; }
+        .cart-badge { background: #e63946; color: white; border-radius: 50%; padding: 2px 8px; font-size: 12px; position: absolute; top: -10px; right: -15px; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 25px; margin: 30px 0; }
+        .product-card { background: white; border-radius: 20px; padding: 15px; text-align: center; cursor: pointer; transition: 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        .product-card img { width: 100%; height: 160px; object-fit: cover; border-radius: 15px; background: #f1f5f9; }
+        .product-card h3 { margin: 10px 0; font-size: 1rem; }
+        .price { color: #0284c7; font-weight: bold; font-size: 1.2rem; }
+        .add-to-cart { background: #f1f5f9; border: none; padding: 8px; border-radius: 30px; cursor: pointer; width: 100%; margin-top: 10px; }
+        .filter-bar { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; flex-wrap: wrap; gap: 10px; }
+        select { padding: 8px 15px; border-radius: 30px; border: 1px solid #ddd; background: white; }
+        .loading { text-align: center; padding: 50px; color: #64748b; }
+        footer { background: #0f172a; color: #cbd5e1; text-align: center; padding: 30px; margin-top: 50px; }
+    </style>
 </head>
 <body>
-
-<div class="top-bar">
-    <div class="container">
-        <span>🚚 توصيل مجاني للطلبات فوق 200,000 دينار</span>
-        <span>💰 الدفع عند الاستلام</span>
-        <span>⭐ خدمة عملاء 24/7</span>
-    </div>
-</div>
 
 <header>
     <div class="container">
         <div class="logo">
-            <h1>📍 <span class="logo-highlight">مكاني</span> ستور</h1>
-            <p>Makani Store</p>
+            <h1>📍 مكاني ستور</h1>
         </div>
         <nav>
             <a href="index.html">الرئيسية</a>
-            <a href="products.html" class="active">المنتجات</a>
-            <a href="cart.html" class="cart-link">
-                🛒 السلة 
-                <span class="cart-badge" id="cart-count">0</span>
-            </a>
+            <a href="products.html">المنتجات</a>
+            <a href="cart.html" class="cart-link">🛒 السلة <span class="cart-badge" id="cartCount">0</span></a>
         </nav>
-        <button class="mobile-menu-btn" id="menuToggle">☰</button>
     </div>
 </header>
 
-<main class="container">
-    <div class="products-header">
+<section class="container">
+    <div class="filter-bar">
         <h2>📦 جميع المنتجات</h2>
-        <div class="filter-bar">
-            <select id="category-filter" class="filter-select">
-                <option value="all">📂 جميع الأقسام</option>
-            </select>
-        </div>
+        <select id="categoryFilter">
+            <option value="all">جميع الأقسام</option>
+        </select>
     </div>
-    <div class="products-grid" id="all-products">
-        <div class="loading-spinner">جاري تحميل المنتجات...</div>
+    <div class="products-grid" id="allProducts">
+        <div class="loading">جاري تحميل المنتجات...</div>
     </div>
-</main>
+</section>
 
 <footer>
     <div class="container">
-        <div class="footer-content">
-            <div class="footer-col"><h3>📍 مكاني ستور</h3><p>متجرك الموثوق للتسوق الإلكتروني</p></div>
-            <div class="footer-col"><h4>روابط سريعة</h4><a href="index.html">الرئيسية</a><a href="products.html">المنتجات</a><a href="cart.html">السلة</a></div>
-            <div class="footer-col"><h4>تواصل معنا</h4><p>📧 info@makanistore.com</p><p>📞 9200 12345</p></div>
-        </div>
-        <div class="footer-bottom"><p>© 2026 مكاني ستور | جميع الحقوق محفوظة</p></div>
+        <p>© 2026 مكاني ستور | جميع الحقوق محفوظة | الدفع عند الاستلام</p>
     </div>
 </footer>
 
 <script src="script.js"></script>
-<script>
-    document.getElementById('menuToggle')?.addEventListener('click', function() {
-        document.querySelector('nav').classList.toggle('show');
-    });
-</script>
 </body>
 </html>
