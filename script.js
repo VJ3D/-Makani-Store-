@@ -1,5 +1,5 @@
 // ==================================================
-// script.js - المتجر يقرأ من Supabase مباشرة (سريع)
+// script.js - تحميل تدريجي 12 منتج من Supabase
 // ==================================================
 
 const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
@@ -9,42 +9,103 @@ let supabase;
 let products = [];
 let categories = [];
 let cart = JSON.parse(localStorage.getItem('makani_cart')) || [];
+let currentPage = 0;
+let isLoading = false;
+let hasMore = true;
+let currentCategoryFilter = null;
+const PRODUCTS_PER_PAGE = 12;
 
-// تهيئة Supabase
 if (typeof window.supabase !== 'undefined') {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     console.log("✅ Supabase connected");
 }
 
 // ==========================================
-// تحميل البيانات من Supabase
+// جلب المنتجات (مع ترقيم الصفحات)
 // ==========================================
-async function loadData() {
-    console.log("🚀 بدء التحميل من Supabase...");
-    
-    // جلب الأقسام
-    const { data: catData } = await supabase.from('categories').select('*').order('id');
-    categories = catData || [];
-    renderCategories();
-    
-    // جلب المنتجات
-    const { data: prodData } = await supabase.from('products').select('*').order('id');
-    products = prodData || [];
-    
-    renderProducts();
-    loadFeaturedProducts();
-    updateCartCount();
-    
-    console.log(`✅ تم تحميل ${products.length} منتج و ${categories.length} قسم`);
+async function fetchProductsPage(page, limit = PRODUCTS_PER_PAGE) {
+    try {
+        const from = page * limit;
+        const to = from + limit - 1;
+        
+        let query = supabase
+            .from('products')
+            .select('*', { count: 'exact' })
+            .range(from, to)
+            .order('id');
+        
+        if (currentCategoryFilter) {
+            query = query.eq('category_id', currentCategoryFilter);
+        }
+        
+        const { data, error, count } = await query;
+        if (error) throw error;
+        return { data: data || [], total: count };
+    } catch (error) {
+        console.error("خطأ:", error);
+        return { data: [], total: 0 };
+    }
 }
 
-// عرض جميع المنتجات
+// ==========================================
+// تحميل المنتجات الأولية
+// ==========================================
+async function loadInitialProducts() {
+    if (isLoading) return;
+    isLoading = true;
+    showLoading(true);
+    
+    try {
+        const result = await fetchProductsPage(0, PRODUCTS_PER_PAGE);
+        products = result.data;
+        currentPage = 0;
+        hasMore = products.length === PRODUCTS_PER_PAGE;
+        renderProducts();
+    } catch (error) {
+        console.error("خطأ:", error);
+    } finally {
+        isLoading = false;
+        showLoading(false);
+    }
+}
+
+// ==========================================
+// تحميل المزيد عند التمرير
+// ==========================================
+async function loadMoreProducts() {
+    if (isLoading || !hasMore) return;
+    isLoading = true;
+    showLoading(true);
+    
+    try {
+        const nextPage = currentPage + 1;
+        const result = await fetchProductsPage(nextPage, PRODUCTS_PER_PAGE);
+        
+        if (result.data.length > 0) {
+            products = [...products, ...result.data];
+            currentPage = nextPage;
+            hasMore = result.data.length === PRODUCTS_PER_PAGE;
+            renderProducts();
+        } else {
+            hasMore = false;
+        }
+    } catch (error) {
+        console.error("خطأ:", error);
+    } finally {
+        isLoading = false;
+        showLoading(false);
+    }
+}
+
+// ==========================================
+// عرض المنتجات
+// ==========================================
 function renderProducts() {
     const container = document.getElementById('all-products');
     if (!container) return;
     
     if (products.length === 0) {
-        container.innerHTML = '<div class="loading">✨ لا توجد منتجات. أضف منتجاتك من لوحة التحكم</div>';
+        container.innerHTML = '<div class="loading">✨ لا توجد منتجات</div>';
         return;
     }
 
@@ -64,18 +125,24 @@ function renderProducts() {
     }).join('');
 }
 
+// ==========================================
 // المنتجات المميزة (أول 4)
+// ==========================================
 async function loadFeaturedProducts() {
+    const { data } = await supabase
+        .from('products')
+        .select('*')
+        .limit(4);
+    
     const container = document.getElementById('featured-products');
     if (!container) return;
     
-    const featured = products.slice(0, 4);
-    if (featured.length === 0) {
+    if (!data || data.length === 0) {
         container.innerHTML = '<div class="loading">✨ لا توجد منتجات</div>';
         return;
     }
     
-    container.innerHTML = featured.map(p => {
+    container.innerHTML = data.map(p => {
         const imageUrl = p.image || 'https://placehold.co/400x400/0284c7/white?text=' + encodeURIComponent(p.name);
         return `
             <div class="product-card" onclick="goToProduct(${p.id})">
@@ -88,8 +155,13 @@ async function loadFeaturedProducts() {
     }).join('');
 }
 
+// ==========================================
 // عرض الأقسام
-function renderCategories() {
+// ==========================================
+async function loadCategories() {
+    const { data } = await supabase.from('categories').select('*').order('id');
+    categories = data || [];
+    
     const grid = document.getElementById('categories-grid');
     if (!grid) return;
     
@@ -99,8 +171,8 @@ function renderCategories() {
     }
     
     grid.innerHTML = categories.map(c => `
-        <a href="products.html?cat=${c.id}" class="category-card">
-            <div class="category-icon">${c.icon || '📁'}</div>
+        <a href="products.html?cat=${c.id}" class="category-card" style="text-decoration:none; display:block; background:white; border-radius:20px; padding:20px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <div style="font-size:2rem;">${c.icon || '📁'}</div>
             <h3>${c.name}</h3>
         </a>
     `).join('');
@@ -112,22 +184,90 @@ function renderCategories() {
         
         filter.onchange = async function() {
             const catId = this.value === 'all' ? null : this.value;
+            const titleElement = document.querySelector('.products-header h2');
+            
             if (catId && catId !== 'all') {
-                const { data } = await supabase.from('products').select('*').eq('category_id', parseInt(catId));
-                products = data || [];
-                renderProducts();
-                const categoryName = categories.find(c => c.id == parseInt(catId))?.name;
-                const titleEl = document.querySelector('.products-header h2');
-                if (titleEl && categoryName) titleEl.innerHTML = `📦 منتجات ${categoryName}`;
+                currentCategoryFilter = parseInt(catId);
+                const categoryName = categories.find(c => c.id == currentCategoryFilter)?.name || 'القسم';
+                if (titleElement) titleElement.innerHTML = `📦 منتجات ${categoryName}`;
+                products = [];
+                currentPage = 0;
+                hasMore = true;
+                await loadInitialProducts();
             } else {
-                const { data } = await supabase.from('products').select('*').order('id');
-                products = data || [];
-                renderProducts();
-                const titleEl = document.querySelector('.products-header h2');
-                if (titleEl) titleEl.innerHTML = `📦 جميع المنتجات`;
+                currentCategoryFilter = null;
+                if (titleElement) titleElement.innerHTML = `📦 جميع المنتجات`;
+                products = [];
+                currentPage = 0;
+                hasMore = true;
+                await loadInitialProducts();
             }
         };
     }
+}
+
+// ==========================================
+// مؤشر التحميل
+// ==========================================
+let loadingDiv = null;
+
+function showLoading(show) {
+    if (show) {
+        if (!loadingDiv) {
+            loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loading-indicator';
+            loadingDiv.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#0284c7; color:white; padding:10px 20px; border-radius:30px; z-index:9999; font-size:14px;';
+            loadingDiv.innerHTML = '⏳ جاري تحميل المزيد...';
+            document.body.appendChild(loadingDiv);
+        }
+        loadingDiv.style.display = 'block';
+    } else {
+        if (loadingDiv) loadingDiv.style.display = 'none';
+    }
+}
+
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', () => {
+        if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 300) {
+            loadMoreProducts();
+        }
+    });
+}
+
+// ==========================================
+// تحميل البيانات الرئيسي
+// ==========================================
+async function loadData() {
+    console.log("🚀 بدء التشغيل...");
+    
+    await loadCategories();
+    await loadFeaturedProducts();
+    
+    if (document.getElementById('all-products')) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const catParam = urlParams.get('cat');
+        
+        if (catParam && catParam !== 'all') {
+            currentCategoryFilter = parseInt(catParam);
+            const categoryName = categories.find(c => c.id == currentCategoryFilter)?.name || 'القسم';
+            const titleElement = document.querySelector('.products-header h2');
+            if (titleElement) titleElement.innerHTML = `📦 منتجات ${categoryName}`;
+            
+            const filter = document.getElementById('category-filter');
+            if (filter) filter.value = catParam;
+        }
+        
+        await loadInitialProducts();
+        setupInfiniteScroll();
+    }
+    
+    if (document.getElementById('cart-items-list')) {
+        renderCartPage();
+    }
+    if (document.getElementById('productDetail')) {
+        loadProductDetail();
+    }
+    updateCartCount();
 }
 
 // ==========================================
@@ -142,7 +282,6 @@ function updateCartCount() {
 window.addToCart = function(id, qty = 1) {
     const product = products.find(p => p.id == id);
     if (!product) return;
-    
     const exist = cart.find(i => i.id == id);
     if (exist) { exist.quantity += qty; } 
     else { cart.push({ ...product, quantity: qty }); }
@@ -281,6 +420,7 @@ function sendOrder(e) {
 // بدء التشغيل
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("🚀 بدء التشغيل - تحميل 12 منتجاً تدريجياً");
     loadData();
     const orderForm = document.getElementById('order-form');
     if (orderForm) orderForm.addEventListener('submit', sendOrder);
